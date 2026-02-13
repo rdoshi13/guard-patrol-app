@@ -1,5 +1,11 @@
 // src/screens/PatrolScreen.tsx
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useCallback,
+} from "react";
 import {
   View,
   Text,
@@ -8,10 +14,12 @@ import {
   Vibration,
   ScrollView,
   ActivityIndicator,
+  BackHandler,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { AppButton } from "../components/AppButton";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { syncPatrolHourRecords } from "../sync/sheets";
 import { SHEETS_SYNC_CONFIG } from "../constants/sheets";
 import { CameraView, Camera } from "expo-camera";
@@ -115,6 +123,7 @@ type WindowScans = Record<string, Record<string, string>>;
 export const PatrolScreen: React.FC = () => {
   const { session } = useSession();
   const { language } = useSettings();
+  const navigation = useNavigation<any>();
 
   const checkpoints = useMemo(() => INITIAL_CHECKPOINTS, []);
 
@@ -136,6 +145,28 @@ export const PatrolScreen: React.FC = () => {
       setHasPermission(status === "granted");
     })();
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      const onBackPress = () => {
+        if (scanning) {
+          setScanning(false);
+          setTorchOn(false);
+          setIsProcessingScan(false);
+          scanLockRef.current = false;
+          return true;
+        }
+        navigation.navigate("Home");
+        return true;
+      };
+
+      const subscription = BackHandler.addEventListener(
+        "hardwareBackPress",
+        onBackPress,
+      );
+      return () => subscription.remove();
+    }, [navigation, scanning]),
+  );
 
   // load saved patrol state
   useEffect(() => {
@@ -311,7 +342,10 @@ export const PatrolScreen: React.FC = () => {
       const skipped = Number(result.skipped ?? 0);
 
       if (attempted === 0) {
-        Alert.alert(t(language, "patrolSyncComplete"), t(language, "patrolSyncNoPending"));
+        Alert.alert(
+          t(language, "patrolSyncComplete"),
+          t(language, "patrolSyncNoPending"),
+        );
       } else {
         Alert.alert(
           t(language, "patrolSyncComplete"),
@@ -491,17 +525,21 @@ export const PatrolScreen: React.FC = () => {
     }).length;
 
     if (nextCount === checkpoints.length) {
-      Alert.alert(t(language, "patrolCompleteTitle"), t(language, "patrolCompleteMsg"), [
-        {
-          text: t(language, "ok"),
-          onPress: () => {
-            setScanning(false);
-            setTorchOn(false);
-            setIsProcessingScan(false);
-            scanLockRef.current = false;
+      Alert.alert(
+        t(language, "patrolCompleteTitle"),
+        t(language, "patrolCompleteMsg"),
+        [
+          {
+            text: t(language, "ok"),
+            onPress: () => {
+              setScanning(false);
+              setTorchOn(false);
+              setIsProcessingScan(false);
+              scanLockRef.current = false;
+            },
           },
-        },
-      ]);
+        ],
+      );
       return;
     }
 
@@ -536,9 +574,7 @@ export const PatrolScreen: React.FC = () => {
     return (
       <View style={styles.centerContainer}>
         <Text style={styles.title}>{t(language, "patrolTitle")}</Text>
-        <Text style={styles.infoText}>
-          {t(language, "patrolWindowInfo")}
-        </Text>
+        <Text style={styles.infoText}>{t(language, "patrolWindowInfo")}</Text>
       </View>
     );
   }
@@ -547,7 +583,9 @@ export const PatrolScreen: React.FC = () => {
   if (scanning) {
     return (
       <View style={styles.scannerContainer}>
-        <Text style={styles.scannerTitle}>{t(language, "patrolScanPrompt")}</Text>
+        <Text style={styles.scannerTitle}>
+          {t(language, "patrolScanPrompt")}
+        </Text>
 
         {hasPermission === false ? (
           <Text style={styles.infoText}>
@@ -578,7 +616,11 @@ export const PatrolScreen: React.FC = () => {
         >
           <View style={{ flex: 1, marginRight: 8 }}>
             <AppButton
-              title={torchOn ? t(language, "patrolTorchOff") : t(language, "patrolTorchOn")}
+              title={
+                torchOn
+                  ? t(language, "patrolTorchOff")
+                  : t(language, "patrolTorchOn")
+              }
               onPress={() => setTorchOn((prev) => !prev)}
               variant="secondary"
             />
@@ -632,7 +674,11 @@ export const PatrolScreen: React.FC = () => {
           {isSyncing ? (
             <ActivityIndicator />
           ) : (
-            <AppButton title={t(language, "sync")} onPress={manualSync} variant="secondary" />
+            <AppButton
+              title={t(language, "sync")}
+              onPress={manualSync}
+              variant="secondary"
+            />
           )}
         </View>
       </View>
@@ -655,7 +701,9 @@ export const PatrolScreen: React.FC = () => {
       </View>
 
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionHeaderText}>{t(language, "patrolTonightWindow")}</Text>
+        <Text style={styles.sectionHeaderText}>
+          {t(language, "patrolTonightWindow")}
+        </Text>
       </View>
 
       <View style={styles.hourGrid}>
@@ -723,7 +771,8 @@ export const PatrolScreen: React.FC = () => {
 
       <View style={{ marginTop: 10 }}>
         <Text style={styles.smallNote}>
-          {t(language, "patrolCurrentWindowLabel")}: {localPatrolDate(now)} {now.getHours()}:00–
+          {t(language, "patrolCurrentWindowLabel")}: {localPatrolDate(now)}{" "}
+          {now.getHours()}:00–
           {now.getHours() + 1}:00
         </Text>
       </View>

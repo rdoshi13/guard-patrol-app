@@ -1,5 +1,14 @@
-import React, { useCallback, useState } from "react";
-import { View, Text, StyleSheet, FlatList, Image, Alert, ActivityIndicator } from "react-native";
+import React, { useCallback, useState, useEffect } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  Image,
+  Alert,
+  ActivityIndicator,
+  BackHandler,
+} from "react-native";
 import { AppButton } from "../components/AppButton";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { useSettings } from "../context/SettingsContext";
@@ -44,7 +53,21 @@ export const VisitorsScreen: React.FC = () => {
   useFocusEffect(
     useCallback(() => {
       loadTop();
-    }, [])
+    }, []),
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      const onBackPress = () => {
+        navigation.navigate("Home");
+        return true;
+      };
+      const subscription = BackHandler.addEventListener(
+        "hardwareBackPress",
+        onBackPress,
+      );
+      return () => subscription.remove();
+    }, [navigation]),
   );
 
   const manualSyncVisitors = async () => {
@@ -67,7 +90,10 @@ export const VisitorsScreen: React.FC = () => {
       const skipped = Number(result.skipped ?? 0);
 
       if (attempted === 0) {
-        Alert.alert(t(language, "visitorsSyncComplete"), t(language, "visitorsSyncNoPending"));
+        Alert.alert(
+          t(language, "visitorsSyncComplete"),
+          t(language, "visitorsSyncNoPending"),
+        );
       } else {
         Alert.alert(
           t(language, "visitorsSyncComplete"),
@@ -135,8 +161,12 @@ export const VisitorsScreen: React.FC = () => {
           onPress={() => navigation.navigate("AddVisitor")}
         />
       </View>
-      <Text style={styles.sectionTitle}>{t(language, "visitorsDailyHelp")}</Text>
-      <Text style={styles.sectionSub}>{t(language, "visitorsQuickAddHelp")}</Text>
+      <Text style={styles.sectionTitle}>
+        {t(language, "visitorsDailyHelp")}
+      </Text>
+      <Text style={styles.sectionSub}>
+        {t(language, "visitorsQuickAddHelp")}
+      </Text>
 
       <View style={styles.dailyRow}>
         <AppButton
@@ -168,11 +198,11 @@ export const VisitorsScreen: React.FC = () => {
 
       <View style={{ height: 18 }} />
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>
+        <Text style={[styles.sectionTitle, { flex: 1, marginTop: 0 }]}>
           {t(language, "visitorsFrequentTop10")}
         </Text>
         <View style={styles.sectionActions}>
-          <View style={{ width: 100 }}>
+          <View style={{ width: 90 }}>
             {isSyncing ? (
               <View style={styles.syncSpinnerWrap}>
                 <ActivityIndicator />
@@ -186,7 +216,7 @@ export const VisitorsScreen: React.FC = () => {
             )}
           </View>
           <View style={{ width: 10 }} />
-          <View style={{ width: 100 }}>
+          <View style={{ width: 90 }}>
             <AppButton
               title={t(language, "visitorsRefresh")}
               onPress={loadTop}

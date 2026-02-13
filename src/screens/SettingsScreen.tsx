@@ -1,7 +1,7 @@
 // src/screens/SettingsScreen.tsx
-import React from "react";
-import { View, Text, StyleSheet } from "react-native";
-import { useNavigation } from "@react-navigation/native";
+import React, { useCallback } from "react";
+import { View, Text, StyleSheet, BackHandler } from "react-native";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
 
 import { AppButton } from "../components/AppButton";
 import { useSettings } from "../context/SettingsContext";
@@ -10,6 +10,20 @@ import { t } from "../i18n/strings";
 export const SettingsScreen: React.FC = () => {
   const { language, setLanguage } = useSettings();
   const navigation = useNavigation<any>();
+
+  useFocusEffect(
+    useCallback(() => {
+      const onBackPress = () => {
+        navigation.navigate("Home");
+        return true;
+      };
+      const subscription = BackHandler.addEventListener(
+        "hardwareBackPress",
+        onBackPress,
+      );
+      return () => subscription.remove();
+    }, [navigation]),
+  );
 
   return (
     <View style={styles.container}>
@@ -38,13 +52,13 @@ export const SettingsScreen: React.FC = () => {
           </View>
         </View>
 
-        <Text style={styles.helper}>
-          {t(language, "settingsSyncHelper")}
-        </Text>
+        <Text style={styles.helper}>{t(language, "settingsSyncHelper")}</Text>
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.sectionTitle}>{t(language, "settingsAdminTitle")}</Text>
+        <Text style={styles.sectionTitle}>
+          {t(language, "settingsAdminTitle")}
+        </Text>
 
         <AppButton
           title={t(language, "settingsManageGuards")}
