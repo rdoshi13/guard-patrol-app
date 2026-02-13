@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  FlatList,
   Image,
   Alert,
   ScrollView,
@@ -242,9 +241,10 @@ export const AddVisitorScreen: React.FC = () => {
     return map[vehicleType] ?? vehicleType;
   };
 
-  const renderSuggestion = ({ item }: { item: VisitorProfile }) => (
+  const renderSuggestion = (item: VisitorProfile, isLast: boolean) => (
     <TouchableOpacity
-      style={styles.suggestionRow}
+      key={item.id}
+      style={[styles.suggestionRow, isLast && styles.suggestionRowLast]}
       onPress={() => selectSuggestion(item)}
     >
       {item.photoUri ? (
@@ -315,11 +315,9 @@ export const AddVisitorScreen: React.FC = () => {
 
       {showSuggestions && suggestions.length > 0 && (
         <View style={styles.suggestionsBox}>
-          <FlatList
-            data={suggestions}
-            keyExtractor={(i) => i.id}
-            renderItem={renderSuggestion}
-          />
+          {suggestions.map((item, index) =>
+            renderSuggestion(item, index === suggestions.length - 1),
+          )}
         </View>
       )}
 
@@ -484,6 +482,9 @@ const styles = StyleSheet.create({
     padding: 10,
     borderBottomWidth: 1,
     borderBottomColor: "#eee",
+  },
+  suggestionRowLast: {
+    borderBottomWidth: 0,
   },
   suggestionAvatar: {
     width: 36,
