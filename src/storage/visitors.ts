@@ -10,6 +10,8 @@ export type VisitType =
 
 export type VehicleType = "None" | "Car" | "Bike" | "Cycle";
 
+export type VisitorWing = "A" | "B" | "C" | "D";
+
 export type VisitorProfile = {
   id: string;
   name: string;
@@ -17,7 +19,9 @@ export type VisitorProfile = {
   type: VisitType;
   vehicle: VehicleType;
   photoUri?: string;
-  flat?: string; // e.g. "B-402"
+  wing?: VisitorWing;
+  flatNumber?: string;
+  flat?: string; // Legacy field kept for migration/backward compatibility
   visitCount: number;
   lastSeenAt?: string;
 };
@@ -36,7 +40,9 @@ export type VisitorEntry = {
   phone: string; // digits only
   type: VisitType;
   vehicle: VehicleType;
-  flat?: string; // e.g. "B-402" or blank
+  wing?: VisitorWing;
+  flatNumber?: string;
+  flat?: string; // Legacy field kept for migration/backward compatibility
 
   event: VisitorEntryEvent;
   notes?: string;
@@ -44,17 +50,206 @@ export type VisitorEntry = {
   syncedAt?: string; // ISO when pushed to Sheets
 };
 
+export type VisitorSheetRow = {
+  recordId: string;
+  society: string;
+  guardId: string;
+  guardName: string;
+  createdAt: string;
+  visitorId: string;
+  name: string;
+  phone: string;
+  type: VisitType;
+  vehicle: VehicleType;
+  wing: string;
+  flatNumber: string;
+  event: VisitorEntryEvent;
+};
+
 const VISITOR_PROFILES_KEY = "visitor_profiles_v1";
 const VISITOR_ENTRIES_KEY = "visitor_entries_v1";
+
+const VISIT_TYPES: VisitType[] = [
+  "Courier/Delivery",
+  "Maid",
+  "Guest",
+  "Electrician/Plumber/Gardener",
+  "Milkman",
+  "Paperboy",
+];
+
+const VEHICLE_TYPES: VehicleType[] = ["None", "Car", "Bike", "Cycle"];
+const WINGS: VisitorWing[] = ["A", "B", "C", "D"];
+
+function digitsOnly(phone: string): string {
+  return phone.replace(/\D/g, "");
+}
+
+function createRecordId(prefix: string): string {
+  // Stable enough for one-device usage; includes time + randomness
+  return `${prefix}_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+}
+
+function normalizeVisitType(v: unknown): VisitType {
+  if (typeof v !== "string") return "Guest";
+  return VISIT_TYPES.includes(v as VisitType) ? (v as VisitType) : "Guest";
+}
+
+function normalizeVehicleType(v: unknown): VehicleType {
+  if (typeof v !== "string") return "None";
+  return VEHICLE_TYPES.includes(v as VehicleType) ? (v as VehicleType) : "None";
+}
+
+function normalizeWing(v: unknown): VisitorWing | undefined {
+  if (typeof v !== "string") return undefined;
+  const s = v.trim().toUpperCase();
+  return WINGS.includes(s as VisitorWing) ? (s as VisitorWing) : undefined;
+}
+
+function normalizeFlatNumber(v: unknown): string | undefined {
+  if (typeof v !== "string" && typeof v !== "number") return undefined;
+  const digits = String(v).replace(/\D/g, "");
+  return digits || undefined;
+}
+
+export function parseLegacyFlat(v: unknown): {
+  wing?: VisitorWing;
+  flatNumber?: string;
+} {
+  if (typeof v !== "string") return {};
+  const s = v.trim();
+  if (!s) return {};
+
+  const m = s.match(/^\s*([A-D])\s*[-–—]?\s*(\d{1,5})\s*$/i);
+  if (!m) return {};
+
+  return {
+    wing: normalizeWing(m[1]),
+    flatNumber: normalizeFlatNumber(m[2]),
+  };
+}
+
+function normalizeProfile(raw: any): {
+  value: VisitorProfile | null;
+  changed: boolean;
+} {
+  if (!raw || typeof raw !== "object") return { value: null, changed: true };
+
+  const id = String(raw.id ?? "").trim();
+  const name = String(raw.name ?? "").trim();
+  if (!id || !name) return { value: null, changed: true };
+
+  const wingRaw = normalizeWing(raw.wing);
+  const flatNumberRaw = normalizeFlatNumber(raw.flatNumber);
+  const legacyFlat = typeof raw.flat === "string" ? raw.flat.trim() : "";
+  const parsedLegacy = parseLegacyFlat(legacyFlat);
+
+  const wing = wingRaw ?? parsedLegacy.wing;
+  const flatNumber = flatNumberRaw ?? parsedLegacy.flatNumber;
+
+  const value: VisitorProfile = {
+    id,
+    name,
+    phone: digitsOnly(String(raw.phone ?? "")),
+    type: normalizeVisitType(raw.type),
+    vehicle: normalizeVehicleType(raw.vehicle),
+    photoUri: typeof raw.photoUri === "string" ? raw.photoUri : undefined,
+    wing,
+    flatNumber,
+    flat: legacyFlat || undefined,
+    visitCount: Number.isFinite(Number(raw.visitCount))
+      ? Math.max(0, Number(raw.visitCount))
+      : 0,
+    lastSeenAt: typeof raw.lastSeenAt === "string" ? raw.lastSeenAt : undefined,
+  };
+
+  const changed =
+    (!wingRaw && !!wing) ||
+    (!flatNumberRaw && !!flatNumber) ||
+    value.phone !== String(raw.phone ?? "");
+
+  return { value, changed };
+}
+
+function normalizeEntry(raw: any): { value: VisitorEntry | null; changed: boolean } {
+  if (!raw || typeof raw !== "object") return { value: null, changed: true };
+
+  const id = String(raw.id ?? "").trim();
+  const society = String(raw.society ?? "").trim();
+  const guardId = String(raw.guardId ?? "").trim();
+  const guardName = String(raw.guardName ?? "").trim();
+  const createdAt = String(raw.createdAt ?? "").trim();
+  const name = String(raw.name ?? "").trim();
+
+  if (!id || !society || !guardId || !guardName || !createdAt || !name) {
+    return { value: null, changed: true };
+  }
+
+  const wingRaw = normalizeWing(raw.wing);
+  const flatNumberRaw = normalizeFlatNumber(raw.flatNumber);
+  const legacyFlat = typeof raw.flat === "string" ? raw.flat.trim() : "";
+  const parsedLegacy = parseLegacyFlat(legacyFlat);
+
+  const wing = wingRaw ?? parsedLegacy.wing;
+  const flatNumber = flatNumberRaw ?? parsedLegacy.flatNumber;
+
+  const value: VisitorEntry = {
+    id,
+    society,
+    guardId,
+    guardName,
+    createdAt,
+    visitorId:
+      typeof raw.visitorId === "string" && raw.visitorId.trim()
+        ? raw.visitorId.trim()
+        : undefined,
+    name,
+    phone: digitsOnly(String(raw.phone ?? "")),
+    type: normalizeVisitType(raw.type),
+    vehicle: normalizeVehicleType(raw.vehicle),
+    wing,
+    flatNumber,
+    flat: legacyFlat || undefined,
+    event: raw.event === "CHECKIN" ? "CHECKIN" : "CHECKIN",
+    notes:
+      typeof raw.notes === "string" && raw.notes.trim()
+        ? raw.notes.trim()
+        : undefined,
+    syncedAt:
+      typeof raw.syncedAt === "string" && raw.syncedAt.trim()
+        ? raw.syncedAt.trim()
+        : undefined,
+  };
+
+  const changed =
+    (!wingRaw && !!wing) ||
+    (!flatNumberRaw && !!flatNumber) ||
+    value.phone !== String(raw.phone ?? "");
+
+  return { value, changed };
+}
 
 export async function loadVisitorProfiles(): Promise<VisitorProfile[]> {
   const raw = await AsyncStorage.getItem(VISITOR_PROFILES_KEY);
   if (!raw) return [];
 
   try {
-    const parsed = JSON.parse(raw) as VisitorProfile[];
+    const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    return parsed;
+
+    let changed = false;
+    const normalized: VisitorProfile[] = [];
+    for (const item of parsed) {
+      const n = normalizeProfile(item);
+      if (n.value) normalized.push(n.value);
+      if (n.changed || !n.value) changed = true;
+    }
+
+    if (changed) {
+      await saveVisitorProfiles(normalized);
+    }
+
+    return normalized;
   } catch {
     return [];
   }
@@ -66,17 +261,8 @@ export async function saveVisitorProfiles(
   await AsyncStorage.setItem(VISITOR_PROFILES_KEY, JSON.stringify(profiles));
 }
 
-function digitsOnly(phone: string): string {
-  return phone.replace(/\D/g, "");
-}
-
-function createRecordId(prefix: string): string {
-  // Stable enough for one-device usage; includes time + randomness
-  return `${prefix}_${Date.now()}_${Math.random().toString(16).slice(2)}`;
-}
-
 export function createVisitorId(phone: string): string {
-  // stable-ish id so same phone maps to same “person”
+  // stable-ish id so same phone maps to same "person"
   return `v_${digitsOnly(phone)}`;
 }
 
@@ -84,6 +270,8 @@ export async function upsertVisitorProfile(input: {
   name: string;
   phone: string;
   type: VisitType;
+  wing?: VisitorWing;
+  flatNumber?: string;
   flat?: string;
   vehicle: VehicleType;
   photoUri?: string;
@@ -94,7 +282,10 @@ export async function upsertVisitorProfile(input: {
   const phoneKey = digitsOnly(input.phone);
   const id = createVisitorId(phoneKey);
   const nowIso = input.seenAtIso ?? new Date().toISOString();
-  const flat = typeof input.flat === "string" ? input.flat.trim() : "";
+  const parsedLegacy = parseLegacyFlat(input.flat);
+  const wing = normalizeWing(input.wing) ?? parsedLegacy.wing;
+  const flatNumber =
+    normalizeFlatNumber(input.flatNumber) ?? parsedLegacy.flatNumber;
 
   const existing = profiles.find((p) => p.id === id);
 
@@ -106,7 +297,8 @@ export async function upsertVisitorProfile(input: {
       name: input.name.trim() || existing.name,
       vehicle: input.vehicle,
       photoUri: input.photoUri ?? existing.photoUri,
-      flat: flat ? flat : existing.flat,
+      wing: wing ?? existing.wing,
+      flatNumber: flatNumber ?? existing.flatNumber,
       visitCount: existing.visitCount + 1,
       lastSeenAt: nowIso,
     };
@@ -118,7 +310,8 @@ export async function upsertVisitorProfile(input: {
       type: input.type,
       vehicle: input.vehicle,
       photoUri: input.photoUri,
-      flat: flat || undefined,
+      wing,
+      flatNumber,
       visitCount: 1,
       lastSeenAt: nowIso,
     };
@@ -172,9 +365,22 @@ export async function loadVisitorEntries(): Promise<VisitorEntry[]> {
   if (!raw) return [];
 
   try {
-    const parsed = JSON.parse(raw) as VisitorEntry[];
+    const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    return parsed;
+
+    let changed = false;
+    const normalized: VisitorEntry[] = [];
+    for (const item of parsed) {
+      const n = normalizeEntry(item);
+      if (n.value) normalized.push(n.value);
+      if (n.changed || !n.value) changed = true;
+    }
+
+    if (changed) {
+      await saveVisitorEntries(normalized);
+    }
+
+    return normalized;
   } catch {
     return [];
   }
@@ -195,6 +401,8 @@ export async function addVisitorEntry(input: {
   phone: string;
   type: VisitType;
   vehicle: VehicleType;
+  wing?: VisitorWing;
+  flatNumber?: string;
   flat?: string;
   event?: VisitorEntryEvent;
   notes?: string;
@@ -204,6 +412,10 @@ export async function addVisitorEntry(input: {
 
   const nowIso = input.createdAtIso ?? new Date().toISOString();
   const phoneDigits = digitsOnly(input.phone);
+  const parsedLegacy = parseLegacyFlat(input.flat);
+  const wing = normalizeWing(input.wing) ?? parsedLegacy.wing;
+  const flatNumber =
+    normalizeFlatNumber(input.flatNumber) ?? parsedLegacy.flatNumber;
 
   const entry: VisitorEntry = {
     id: createRecordId("ve"),
@@ -217,7 +429,8 @@ export async function addVisitorEntry(input: {
     phone: phoneDigits,
     type: input.type,
     vehicle: input.vehicle,
-    flat: input.flat?.trim() || undefined,
+    wing,
+    flatNumber,
 
     event: input.event ?? "CHECKIN",
     notes: input.notes?.trim() || undefined,
@@ -272,4 +485,33 @@ export async function cleanupSyncedVisitorEntries(
   if (next.length !== entries.length) {
     await saveVisitorEntries(next);
   }
+}
+
+export function visitorEntryToSheetRow(entry: VisitorEntry): VisitorSheetRow {
+  return {
+    recordId: entry.id,
+    society: entry.society,
+    guardId: entry.guardId,
+    guardName: entry.guardName,
+    createdAt: entry.createdAt,
+    visitorId: entry.visitorId ?? "",
+    name: entry.name,
+    phone: entry.phone,
+    type: entry.type,
+    vehicle: entry.vehicle,
+    wing: entry.wing ?? "",
+    flatNumber: entry.flatNumber ?? "",
+    event: entry.event,
+  };
+}
+
+export async function getVisitorSyncPayload(limit: number = 300): Promise<{
+  recordIds: string[];
+  rows: VisitorSheetRow[];
+}> {
+  const entries = await loadUnsyncedVisitorEntries(limit);
+  return {
+    recordIds: entries.map((e) => e.id),
+    rows: entries.map(visitorEntryToSheetRow),
+  };
 }

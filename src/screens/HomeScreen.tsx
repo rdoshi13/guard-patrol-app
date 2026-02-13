@@ -1,5 +1,5 @@
 // src/screens/HomeScreen.tsx
-import React, { useEffect } from "react";
+import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { AppButton } from "../components/AppButton";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -8,8 +8,6 @@ import { useSession } from "../context/SessionContext";
 import { useSettings } from "../context/SettingsContext";
 import { t } from "../i18n/strings";
 import { Ionicons } from "@expo/vector-icons";
-import { syncPatrolHourRecordsToSheets } from "../sync/sheets";
-import { SHEETS_SYNC_URL, SHEETS_SYNC_TOKEN } from "../constants/sheets";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Home">;
 
@@ -36,19 +34,6 @@ export const HomeScreen: React.FC<Props> = ({ navigation }) => {
   const hasActive = !!session;
   const hasLast = !!lastSession;
 
-  useEffect(() => {
-    // Silent best-effort sync whenever Home loads
-    (async () => {
-      try {
-        await syncPatrolHourRecordsToSheets({
-          url: SHEETS_SYNC_URL,
-          token: SHEETS_SYNC_TOKEN || undefined,
-        });
-      } catch {
-        // silent retry later
-      }
-    })();
-  }, []);
   return (
     <View style={styles.container}>
       <Text style={styles.heading}>{t(language, "homeTitle")}</Text>
@@ -97,7 +82,7 @@ export const HomeScreen: React.FC<Props> = ({ navigation }) => {
 
       {/* navigation list */}
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionHeaderText}>Actions</Text>
+        <Text style={styles.sectionHeaderText}>{t(language, "homeActions")}</Text>
       </View>
 
       <View style={styles.buttonRow}>

@@ -20,8 +20,11 @@ import {
   loadVisitorProfiles,
   upsertVisitorProfile,
   addVisitorEntry,
+  parseLegacyFlat,
 } from "../storage/visitors";
 import { useSession } from "../context/SessionContext";
+import { useSettings } from "../context/SettingsContext";
+import { t } from "../i18n/strings";
 
 const VISIT_TYPES: VisitType[] = [
   "Courier/Delivery",
@@ -55,6 +58,7 @@ const VEHICLE_TYPES: VehicleType[] = ["None", "Car", "Bike", "Cycle"];
 export const AddVisitorScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const { session } = useSession();
+  const { language } = useSettings();
   const canSave = !!session;
 
   const [allProfiles, setAllProfiles] = useState<VisitorProfile[]>([]);
@@ -91,7 +95,10 @@ export const AddVisitorScreen: React.FC = () => {
   const pickFromGallery = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
-      Alert.alert("Permission needed", "Gallery permission is required.");
+      Alert.alert(
+        t(language, "addVisitorPermissionNeeded"),
+        t(language, "addVisitorGalleryPermission"),
+      );
       return;
     }
 
@@ -109,7 +116,10 @@ export const AddVisitorScreen: React.FC = () => {
   const takePhoto = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== "granted") {
-      Alert.alert("Permission needed", "Camera permission is required.");
+      Alert.alert(
+        t(language, "addVisitorPermissionNeeded"),
+        t(language, "addVisitorCameraPermission"),
+      );
       return;
     }
 
@@ -128,26 +138,15 @@ export const AddVisitorScreen: React.FC = () => {
     setVehicle(p.vehicle);
     setPhotoUri(p.photoUri);
     setType(p.type);
-    if (p.flat) {
-      // Accept formats like: "B-402", "b - 402", "B–402", "B—402" with extra spaces
-      const s = String(p.flat).trim();
-      const m = s.match(/^\s*([A-D])\s*[-–—]?\s*(\d{3})\s*$/i);
+    const parsedLegacy = parseLegacyFlat(p.flat);
+    const w = p.wing ?? parsedLegacy.wing;
+    const f = p.flatNumber ?? parsedLegacy.flatNumber;
 
-      if (m) {
-        const w = m[1].toUpperCase() as Wing;
-        const f = m[2] as FlatNumber;
-
-        if (WINGS.includes(w)) setWing(w);
-        if (FLATS_IN_WING.includes(f)) setFlatNumber(f);
-      }
-
-      console.log(
-        "[AddVisitor] suggestion flat raw=",
-        p.flat,
-        "parsed=",
-        m ? `${m[1].toUpperCase()}-${m[2]}` : "NO_MATCH",
-      );
+    if (w && WINGS.includes(w as Wing)) setWing(w as Wing);
+    if (f && FLATS_IN_WING.includes(f as FlatNumber)) {
+      setFlatNumber(f as FlatNumber);
     }
+
     setShowSuggestions(false);
   };
 
@@ -155,21 +154,24 @@ export const AddVisitorScreen: React.FC = () => {
     const n = name.trim();
     const ph = phone.replace(/\D/g, "");
 
-    if (!n) return "Name is required";
-    if (ph.length < 8) return "Valid phone number is required";
+    if (!n) return t(language, "addVisitorValidationName");
+    if (ph.length < 8) return t(language, "addVisitorValidationPhone");
 
     return null;
   };
 
   const save = async () => {
     if (!session) {
-      Alert.alert("Start shift", "Start a shift before adding visitors.");
+      Alert.alert(
+        t(language, "addVisitorStartShiftTitle"),
+        t(language, "addVisitorStartShiftMsg"),
+      );
       return;
     }
 
     const err = validate();
     if (err) {
-      Alert.alert("Missing info", err);
+      Alert.alert(t(language, "addVisitorMissingInfoTitle"), err);
       return;
     }
 
@@ -181,7 +183,8 @@ export const AddVisitorScreen: React.FC = () => {
         phone: ph,
         type,
         vehicle,
-        flat: `${wing}-${flatNumber}`,
+        wing,
+        flatNumber,
         photoUri,
       });
 
@@ -194,7 +197,8 @@ export const AddVisitorScreen: React.FC = () => {
         phone: ph,
         type,
         vehicle,
-        flat: `${wing}-${flatNumber}`,
+        wing,
+        flatNumber,
         event: "CHECKIN",
       });
 
@@ -202,10 +206,40 @@ export const AddVisitorScreen: React.FC = () => {
       navigation.goBack();
     } catch (e) {
       Alert.alert(
-        "Save failed",
-        "Could not save the visitor entry. Please try again.",
+        t(language, "addVisitorSaveFailedTitle"),
+        t(language, "addVisitorSaveFailedMsg"),
       );
     }
+  };
+
+  const visitTypeLabel = (type: VisitType) => {
+    const keyMap: Record<
+      VisitType,
+      | "visitorsCourier"
+      | "visitorsSweeper"
+      | "visitorsGuest"
+      | "visitorsGardener"
+      | "visitorsMilkman"
+      | "visitorsPaperboy"
+    > = {
+      "Courier/Delivery": "visitorsCourier",
+      Milkman: "visitorsMilkman",
+      Maid: "visitorsSweeper",
+      Guest: "visitorsGuest",
+      Paperboy: "visitorsPaperboy",
+      "Electrician/Plumber/Gardener": "visitorsGardener",
+    };
+    return t(language, keyMap[type]);
+  };
+
+  const vehicleLabel = (vehicleType: VehicleType) => {
+    const map: Partial<Record<VehicleType, string>> = {
+      None: language === "gu" ? "કંઈ નહિ" : "None",
+      Car: language === "gu" ? "કાર" : "Car",
+      Bike: language === "gu" ? "બાઈક" : "Bike",
+      Cycle: language === "gu" ? "સાયકલ" : "Cycle",
+    };
+    return map[vehicleType] ?? vehicleType;
   };
 
   const renderSuggestion = ({ item }: { item: VisitorProfile }) => (
@@ -227,7 +261,7 @@ export const AddVisitorScreen: React.FC = () => {
       )}
       <View style={{ flex: 1 }}>
         <Text style={styles.suggestionName}>{item.name}</Text>
-        <Text style={styles.suggestionMeta}>{item.type}</Text>
+        <Text style={styles.suggestionMeta}>{visitTypeLabel(item.type)}</Text>
       </View>
     </TouchableOpacity>
   );
@@ -239,7 +273,7 @@ export const AddVisitorScreen: React.FC = () => {
       keyboardShouldPersistTaps="handled"
     >
       {/* Type */}
-      <Text style={styles.label}>Type of visit</Text>
+      <Text style={styles.label}>{t(language, "addVisitorTypeLabel")}</Text>
       <View style={styles.pillsRow}>
         {VISIT_TYPES.map((vt) => {
           const selected = vt === type;
@@ -251,14 +285,14 @@ export const AddVisitorScreen: React.FC = () => {
               onPress={() => setType(vt)}
               activeOpacity={0.8}
             >
-              <Text style={styles.pillText}>{vt}</Text>
+              <Text style={styles.pillText}>{visitTypeLabel(vt)}</Text>
             </TouchableOpacity>
           );
         })}
       </View>
 
       {/* Name + suggestions */}
-      <Text style={styles.label}>Name</Text>
+      <Text style={styles.label}>{t(language, "addVisitorNameLabel")}</Text>
       <TextInput
         value={name}
         onChangeText={(v) => {
@@ -275,7 +309,7 @@ export const AddVisitorScreen: React.FC = () => {
             setShowSuggestions(false);
           }
         }}
-        placeholder="Enter name"
+        placeholder={t(language, "addVisitorNamePlaceholder")}
         style={styles.input}
       />
 
@@ -290,17 +324,17 @@ export const AddVisitorScreen: React.FC = () => {
       )}
 
       {/* Phone */}
-      <Text style={styles.label}>Phone number</Text>
+      <Text style={styles.label}>{t(language, "addVisitorPhoneLabel")}</Text>
       <TextInput
         value={phone}
         onChangeText={setPhone}
-        placeholder="Enter phone"
+        placeholder={t(language, "addVisitorPhonePlaceholder")}
         keyboardType="phone-pad"
         style={styles.input}
       />
-      <Text style={styles.label}>Flat</Text>
+      <Text style={styles.label}>{t(language, "addVisitorFlatLabel")}</Text>
 
-      <Text style={styles.subLabel}>Wing</Text>
+      <Text style={styles.subLabel}>{t(language, "addVisitorWingLabel")}</Text>
       <View style={styles.pillsRow}>
         {WINGS.map((w) => (
           <TouchableOpacity
@@ -314,7 +348,9 @@ export const AddVisitorScreen: React.FC = () => {
         ))}
       </View>
 
-      <Text style={styles.subLabel}>Flat</Text>
+      <Text style={styles.subLabel}>
+        {t(language, "addVisitorFlatNumberLabel")}
+      </Text>
       <View style={styles.pillsRow}>
         {FLATS_IN_WING.map((f) => (
           <TouchableOpacity
@@ -329,10 +365,10 @@ export const AddVisitorScreen: React.FC = () => {
       </View>
 
       <Text style={styles.helperText}>
-        Saved as {wing}-{flatNumber}
+        {t(language, "addVisitorSavedAs")} {wing}-{flatNumber}
       </Text>
       {/* Vehicle */}
-      <Text style={styles.label}>Vehicle</Text>
+      <Text style={styles.label}>{t(language, "addVisitorVehicleLabel")}</Text>
       <View style={styles.pillsRow}>
         {VEHICLE_TYPES.map((v) => {
           const selected = v === vehicle;
@@ -344,33 +380,33 @@ export const AddVisitorScreen: React.FC = () => {
               onPress={() => setVehicle(v)}
               activeOpacity={0.8}
             >
-              <Text style={styles.pillText}>{v}</Text>
+              <Text style={styles.pillText}>{vehicleLabel(v)}</Text>
             </TouchableOpacity>
           );
         })}
       </View>
 
       {/* Photo */}
-      <Text style={styles.label}>Photo</Text>
+      <Text style={styles.label}>{t(language, "addVisitorPhotoLabel")}</Text>
       {photoUri ? (
         <View style={{ alignItems: "center", marginBottom: 8 }}>
           <Image source={{ uri: photoUri }} style={styles.photoPreview} />
         </View>
       ) : (
-        <Text style={styles.helperText}>Optional</Text>
+        <Text style={styles.helperText}>{t(language, "addVisitorOptional")}</Text>
       )}
 
       <View style={styles.photoButtonsRow}>
         <View style={{ flex: 1, marginRight: 8 }}>
           <AppButton
-            title="Take photo"
+            title={t(language, "takePhoto")}
             onPress={takePhoto}
             variant="secondary"
           />
         </View>
         <View style={{ flex: 1, marginLeft: 8 }}>
           <AppButton
-            title="Gallery"
+            title={t(language, "gallery")}
             onPress={pickFromGallery}
             variant="secondary"
           />
@@ -378,11 +414,17 @@ export const AddVisitorScreen: React.FC = () => {
       </View>
 
       {!canSave && (
-        <Text style={styles.helperText}>Start a shift to add visitors.</Text>
+        <Text style={styles.helperText}>
+          {t(language, "addVisitorStartShiftHint")}
+        </Text>
       )}
 
       <View style={{ marginTop: 18 }}>
-        <AppButton title="Save visitor" onPress={save} disabled={!canSave} />
+        <AppButton
+          title={t(language, "addVisitorSaveButton")}
+          onPress={save}
+          disabled={!canSave}
+        />
       </View>
     </ScrollView>
   );

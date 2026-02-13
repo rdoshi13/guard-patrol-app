@@ -39,23 +39,20 @@ export const SettingsScreen: React.FC = () => {
         </View>
 
         <Text style={styles.helper}>
-          Patrol + visitors sync runs automatically every 12 hours (once Sheets
-          is connected).
+          {t(language, "settingsSyncHelper")}
         </Text>
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Admin</Text>
+        <Text style={styles.sectionTitle}>{t(language, "settingsAdminTitle")}</Text>
 
         <AppButton
-          title="Manage Guards"
+          title={t(language, "settingsManageGuards")}
           onPress={() => navigation.navigate("AdminPin")}
           variant="secondary"
         />
 
-        <Text style={styles.helper}>
-          Requires PIN. You can’t edit/delete a guard who is currently on duty.
-        </Text>
+        <Text style={styles.helper}>{t(language, "settingsAdminHelper")}</Text>
       </View>
     </View>
   );

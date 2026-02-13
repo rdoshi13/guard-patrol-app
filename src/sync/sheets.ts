@@ -5,6 +5,11 @@ import {
   markHourRecordsSynced,
   cleanupSyncedOlderThan,
 } from "../storage/patrol";
+import {
+  getVisitorSyncPayload,
+  markVisitorEntriesSynced,
+  cleanupSyncedVisitorEntries,
+} from "../storage/visitors";
 
 export type SyncResult = {
   ok: boolean;
@@ -14,10 +19,15 @@ export type SyncResult = {
   message?: string;
 };
 
-type SyncConfig = {
+export type SyncConfig = {
   url: string; // Apps Script /exec URL
   token?: string; // optional shared secret, sent via query param and body (headers are unreliable)
   timeoutMs?: number;
+};
+
+type PushRowsResult = SyncResult & {
+  remoteInserted: number;
+  remoteSkipped: number;
 };
 
 async function postJsonWithTimeout(
@@ -72,30 +82,75 @@ async function postWithSilentRetry(
   throw lastErr ?? new Error("Request failed");
 }
 
-export async function syncPatrolHourRecords(
+function parseRemoteAck(payloadText: string): {
+  remoteOk: boolean;
+  inserted: number;
+  skipped: number;
+  message?: string;
+} {
+  let payload: any = null;
+  try {
+    payload = payloadText ? JSON.parse(payloadText) : null;
+  } catch {
+    payload = null;
+  }
+
+  // Only treat explicit success as success.
+  // Avoid heuristics like substring "ok", which can misclassify {"ok":false}.
+  const remoteOk = payload?.ok === true || payload?.success === true;
+  const debugSuffix =
+    payload && typeof payload === "object"
+      ? ` [debug: ${JSON.stringify({
+          version: payload.version,
+          tokenRequired: payload.tokenRequired,
+          queryTokenPresent: payload.queryTokenPresent,
+          headerTokenPresent: payload.headerTokenPresent,
+          bodyTokenPresent: payload.bodyTokenPresent,
+          providedTokenLength: payload.providedTokenLength,
+        })}]`
+      : "";
+
+  return {
+    remoteOk,
+    inserted: typeof payload?.inserted === "number" ? payload.inserted : -1,
+    skipped: typeof payload?.skipped === "number" ? payload.skipped : 0,
+    message:
+      typeof payload?.message === "string"
+        ? payload.message
+        : typeof payload?.error === "string"
+          ? `${payload.error}${debugSuffix}`
+        : payloadText || undefined,
+  };
+}
+
+async function pushRows(
+  kind: "patrol_hour_records_v1" | "visitor_entries_v1",
+  recordIds: string[],
+  rows: any[],
   cfg: SyncConfig,
-): Promise<SyncResult> {
+): Promise<PushRowsResult> {
   const timeoutMs = cfg.timeoutMs ?? 12_000;
 
-  try {
-    const records = await getUnsyncedHourRecords();
-
-    if (records.length === 0) {
-      return { ok: true, attempted: 0, synced: 0, skipped: 0 };
-    }
-
-    const rows = records.map(patrolRecordToSheetRow);
-    const recordIds = records.map((r) => r.id);
-
-    const url = withToken(cfg.url, cfg.token);
-
-    const body = {
-      kind: "patrol_hour_records_v1",
-      token: cfg.token, // Apps Script reliably receives body + query params
-      recordIds,
-      rows,
+  if (recordIds.length === 0 || rows.length === 0) {
+    return {
+      ok: true,
+      attempted: 0,
+      synced: 0,
+      skipped: 0,
+      remoteInserted: 0,
+      remoteSkipped: 0,
     };
+  }
 
+  const url = withToken(cfg.url, cfg.token);
+  const body = {
+    kind,
+    token: cfg.token,
+    recordIds,
+    rows,
+  };
+
+  try {
     const res = await postWithSilentRetry(
       url,
       {
@@ -116,69 +171,128 @@ export async function syncPatrolHourRecords(
         attempted: recordIds.length,
         synced: 0,
         skipped: 0,
+        remoteInserted: 0,
+        remoteSkipped: 0,
         message: `HTTP ${res.status} ${text}`.trim(),
       };
     }
 
-    // We accept either JSON or plain text "ok"
     const payloadText = await res.text().catch(() => "");
-    let payload: any = null;
-
-    try {
-      payload = payloadText ? JSON.parse(payloadText) : null;
-    } catch {
-      payload = null;
-    }
-
-    const remoteOk =
-      payload?.ok === true ||
-      payload?.success === true ||
-      payloadText.toLowerCase().includes("ok");
-
-    if (!remoteOk) {
+    const ack = parseRemoteAck(payloadText);
+    if (!ack.remoteOk) {
       return {
         ok: false,
         attempted: recordIds.length,
         synced: 0,
         skipped: 0,
-        message: payloadText || "Remote did not confirm success",
+        remoteInserted: 0,
+        remoteSkipped: 0,
+        message: ack.message || "Remote did not confirm success",
       };
     }
 
-    await markHourRecordsSynced(recordIds);
-    await cleanupSyncedOlderThan(7);
-
-    const inserted =
-      typeof payload?.inserted === "number"
-        ? payload.inserted
-        : recordIds.length;
-    const remoteSkipped =
-      typeof payload?.skipped === "number" ? payload.skipped : 0;
-
-    // If the server deduped (skipped), those records are already in the sheet.
-    // Either way, they are safe to mark as synced locally.
-    const safeSynced = Math.min(recordIds.length, inserted + remoteSkipped);
+    const remoteInserted =
+      ack.inserted >= 0 ? ack.inserted : recordIds.length - ack.skipped;
+    const remoteSkipped = Math.max(0, ack.skipped);
+    const safeSynced = Math.min(
+      recordIds.length,
+      Math.max(0, remoteInserted + remoteSkipped),
+    );
 
     return {
       ok: true,
       attempted: recordIds.length,
       synced: safeSynced,
       skipped: remoteSkipped,
-      message:
-        typeof payload?.message === "string" ? payload.message : undefined,
+      remoteInserted,
+      remoteSkipped,
+      message: ack.message,
     };
   } catch (e: any) {
     return {
       ok: false,
-      attempted: 0,
+      attempted: recordIds.length,
       synced: 0,
       skipped: 0,
+      remoteInserted: 0,
+      remoteSkipped: 0,
       message:
         e?.name === "AbortError"
           ? "Sync request timed out"
           : (e?.message ?? String(e)),
     };
   }
+}
+
+export async function syncPatrolHourRecords(
+  cfg: SyncConfig,
+): Promise<SyncResult> {
+  const records = await getUnsyncedHourRecords();
+  if (records.length === 0) {
+    return { ok: true, attempted: 0, synced: 0, skipped: 0 };
+  }
+
+  const rows = records.map(patrolRecordToSheetRow);
+  const recordIds = records.map((r) => r.id);
+  const pushed = await pushRows("patrol_hour_records_v1", recordIds, rows, cfg);
+
+  if (!pushed.ok) {
+    return pushed;
+  }
+
+  if (pushed.synced === recordIds.length) {
+    await markHourRecordsSynced(recordIds);
+    await cleanupSyncedOlderThan(7);
+  } else {
+    return {
+      ...pushed,
+      ok: false,
+      message: "Partial patrol sync confirmation; local records left unsynced.",
+    };
+  }
+
+  return pushed;
+}
+
+export async function syncVisitorEntries(
+  cfg: SyncConfig,
+  limit: number = 300,
+): Promise<SyncResult> {
+  const payload = await getVisitorSyncPayload(limit);
+  if (payload.recordIds.length === 0) {
+    return { ok: true, attempted: 0, synced: 0, skipped: 0 };
+  }
+
+  const pushed = await pushRows(
+    "visitor_entries_v1",
+    payload.recordIds,
+    payload.rows,
+    cfg,
+  );
+  if (!pushed.ok) return pushed;
+
+  if (pushed.synced === payload.recordIds.length) {
+    await markVisitorEntriesSynced(payload.recordIds);
+    await cleanupSyncedVisitorEntries(7);
+  } else {
+    return {
+      ...pushed,
+      ok: false,
+      message:
+        "Partial visitor sync confirmation; local records left unsynced.",
+    };
+  }
+
+  return pushed;
+}
+
+export async function syncAllPending(cfg: SyncConfig): Promise<{
+  patrol: SyncResult;
+  visitors: SyncResult;
+}> {
+  const patrol = await syncPatrolHourRecords(cfg);
+  const visitors = await syncVisitorEntries(cfg);
+  return { patrol, visitors };
 }
 
 // Back-compat alias

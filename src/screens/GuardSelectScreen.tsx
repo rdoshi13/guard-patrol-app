@@ -120,8 +120,8 @@ export const GuardSelectScreen: React.FC = () => {
 
       if (status !== "granted") {
         Alert.alert(
-          "Permission needed",
-          "Please allow gallery access to pick a photo."
+          t(language, "permissionNeededTitle"),
+          t(language, "galleryPermissionMsg"),
         );
         return;
       }
@@ -136,7 +136,10 @@ export const GuardSelectScreen: React.FC = () => {
         setNewGuardPhotoUri(result.assets[0].uri);
       }
     } catch (e: any) {
-      Alert.alert("Gallery error", e?.message ?? "Could not open gallery.");
+      Alert.alert(
+        t(language, "galleryErrorTitle"),
+        e?.message ?? t(language, "galleryOpenFailMsg"),
+      );
     } finally {
       setIsPickingPhoto(false);
     }
@@ -151,8 +154,8 @@ export const GuardSelectScreen: React.FC = () => {
 
       if (status !== "granted") {
         Alert.alert(
-          "Permission needed",
-          "Please allow camera access to take a photo."
+          t(language, "permissionNeededTitle"),
+          t(language, "cameraPermissionMsg"),
         );
         return;
       }
@@ -165,7 +168,10 @@ export const GuardSelectScreen: React.FC = () => {
         setNewGuardPhotoUri(result.assets[0].uri);
       }
     } catch (e: any) {
-      Alert.alert("Camera error", e?.message ?? "Could not open camera.");
+      Alert.alert(
+        t(language, "cameraErrorTitle"),
+        e?.message ?? t(language, "cameraOpenFailMsg"),
+      );
     } finally {
       setIsPickingPhoto(false);
     }
@@ -246,7 +252,7 @@ export const GuardSelectScreen: React.FC = () => {
               style={styles.input}
               value={newGuardName}
               onChangeText={setNewGuardName}
-              placeholder="Ramesh"
+              placeholder={t(language, "guardNamePlaceholder")}
             />
 
             <Text style={[styles.label, { marginTop: 8 }]}>
@@ -256,12 +262,12 @@ export const GuardSelectScreen: React.FC = () => {
               style={styles.input}
               value={newGuardPhone}
               onChangeText={setNewGuardPhone}
-              placeholder="9876543210"
+              placeholder={t(language, "guardPhonePlaceholder")}
               keyboardType="phone-pad"
             />
 
             <Text style={[styles.label, { marginTop: 8 }]}>
-              Photo (optional)
+              {t(language, "guardPhotoOptional")}
             </Text>
             {newGuardPhotoUri && (
               <View style={{ alignItems: "center", marginBottom: 8 }}>
@@ -274,7 +280,7 @@ export const GuardSelectScreen: React.FC = () => {
             <View style={styles.photoButtonsRow}>
               <View style={{ width: 140 }}>
                 <AppButton
-                  title="Take photo"
+                  title={t(language, "takePhoto")}
                   onPress={takePhoto}
                   variant="secondary"
                 />
@@ -282,7 +288,7 @@ export const GuardSelectScreen: React.FC = () => {
               <View style={{ width: 12 }} />
               <View style={{ width: 140 }}>
                 <AppButton
-                  title="Gallery"
+                  title={t(language, "gallery")}
                   onPress={pickFromGallery}
                   variant="secondary"
                 />
@@ -292,13 +298,13 @@ export const GuardSelectScreen: React.FC = () => {
             <View style={styles.modalButtons}>
               <View style={{ flex: 1, marginRight: 8 }}>
                 <AppButton
-                  title="Cancel"
+                  title={t(language, "cancel")}
                   onPress={() => setModalVisible(false)}
                   variant="secondary"
                 />
               </View>
               <View style={{ flex: 1, marginLeft: 8 }}>
-                <AppButton title="Save" onPress={handleAddNewGuard} />
+                <AppButton title={t(language, "save")} onPress={handleAddNewGuard} />
               </View>
             </View>
           </View>

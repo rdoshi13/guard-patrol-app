@@ -4,11 +4,14 @@ import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/RootNavigator";
 import { AppButton } from "../components/AppButton";
 import { ADMIN_PIN } from "../constants/admin";
+import { useSettings } from "../context/SettingsContext";
+import { t } from "../i18n/strings";
 
 type Props = NativeStackScreenProps<RootStackParamList, "AdminPin">;
 
 export const AdminPinScreen: React.FC<Props> = ({ navigation }) => {
   const [pin, setPin] = useState("");
+  const { language } = useSettings();
 
   const canSubmit = useMemo(() => pin.length === 6, [pin.length]);
 
@@ -19,14 +22,14 @@ export const AdminPinScreen: React.FC<Props> = ({ navigation }) => {
       return;
     }
 
-    Alert.alert("Wrong PIN", "Please try again.");
+    Alert.alert(t(language, "adminPinWrongTitle"), t(language, "adminPinWrongMsg"));
     setPin("");
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Admin PIN</Text>
-      <Text style={styles.subtitle}>Enter 6-digit PIN to manage guards.</Text>
+      <Text style={styles.title}>{t(language, "adminPinTitle")}</Text>
+      <Text style={styles.subtitle}>{t(language, "adminPinSubtitle")}</Text>
 
       <TextInput
         value={pin}
@@ -39,7 +42,11 @@ export const AdminPinScreen: React.FC<Props> = ({ navigation }) => {
       />
 
       <View style={{ marginTop: 16 }}>
-        <AppButton title="Continue" onPress={submit} disabled={!canSubmit} />
+        <AppButton
+          title={t(language, "continue")}
+          onPress={submit}
+          disabled={!canSubmit}
+        />
       </View>
     </View>
   );

@@ -1,9 +1,12 @@
 import React, { useCallback, useState } from "react";
-import { View, Text, StyleSheet, FlatList, Image } from "react-native";
+import { View, Text, StyleSheet, FlatList, Image, Alert, ActivityIndicator } from "react-native";
 import { AppButton } from "../components/AppButton";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { useSettings } from "../context/SettingsContext";
 import { VisitorProfile, getTopVisitorsByFrequency } from "../storage/visitors";
+import { t } from "../i18n/strings";
+import { syncVisitorEntries } from "../sync/sheets";
+import { SHEETS_SYNC_CONFIG } from "../constants/sheets";
 
 function formatDateTime(iso?: string): string {
   if (!iso) return "-";
@@ -25,6 +28,7 @@ export const VisitorsScreen: React.FC = () => {
 
   const [topVisitors, setTopVisitors] = useState<VisitorProfile[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const loadTop = async () => {
     setLoading(true);
@@ -43,6 +47,61 @@ export const VisitorsScreen: React.FC = () => {
     }, [])
   );
 
+  const manualSyncVisitors = async () => {
+    if (isSyncing) return;
+
+    try {
+      setIsSyncing(true);
+
+      const result = await syncVisitorEntries(SHEETS_SYNC_CONFIG);
+      if (!result.ok) {
+        Alert.alert(
+          t(language, "visitorsSyncFailed"),
+          result.message ?? t(language, "patrolSyncDidNotComplete"),
+        );
+        return;
+      }
+
+      const attempted = Number(result.attempted ?? 0);
+      const synced = Number(result.synced ?? 0);
+      const skipped = Number(result.skipped ?? 0);
+
+      if (attempted === 0) {
+        Alert.alert(t(language, "visitorsSyncComplete"), t(language, "visitorsSyncNoPending"));
+      } else {
+        Alert.alert(
+          t(language, "visitorsSyncComplete"),
+          `${t(language, "visitorsAttempted")}: ${attempted}\n${t(language, "visitorsSynced")}: ${synced}\n${t(language, "visitorsSkipped")}: ${skipped}`,
+        );
+      }
+    } catch (e: any) {
+      Alert.alert(t(language, "visitorsSyncFailed"), String(e?.message ?? e));
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const visitTypeLabel = (type: string) => {
+    const map: Record<
+      string,
+      | "visitorsCourier"
+      | "visitorsSweeper"
+      | "visitorsGuest"
+      | "visitorsGardener"
+      | "visitorsMilkman"
+      | "visitorsPaperboy"
+    > = {
+      "Courier/Delivery": "visitorsCourier",
+      Milkman: "visitorsMilkman",
+      Maid: "visitorsSweeper",
+      Guest: "visitorsGuest",
+      Paperboy: "visitorsPaperboy",
+      "Electrician/Plumber/Gardener": "visitorsGardener",
+    };
+    const key = map[type];
+    return key ? t(language, key) : type;
+  };
+
   const renderItem = ({ item }: { item: VisitorProfile }) => {
     return (
       <View style={styles.row}>
@@ -59,7 +118,8 @@ export const VisitorsScreen: React.FC = () => {
         <View style={{ flex: 1 }}>
           <Text style={styles.name}>{item.name}</Text>
           <Text style={styles.meta}>
-            {item.type} • {item.visitCount} visits • Last:{" "}
+            {visitTypeLabel(item.type)} • {item.visitCount}{" "}
+            {t(language, "visitorsVisits")} • {t(language, "visitorsLast")}:{" "}
             {formatDateTime(item.lastSeenAt)}
           </Text>
         </View>
@@ -71,16 +131,16 @@ export const VisitorsScreen: React.FC = () => {
     <View style={styles.container}>
       <View style={styles.topArea}>
         <AppButton
-          title="Add Visitor"
+          title={t(language, "visitorsAddButton")}
           onPress={() => navigation.navigate("AddVisitor")}
         />
       </View>
-      <Text style={styles.sectionTitle}>Daily Help</Text>
-      <Text style={styles.sectionSub}>Quick add common daily staff</Text>
+      <Text style={styles.sectionTitle}>{t(language, "visitorsDailyHelp")}</Text>
+      <Text style={styles.sectionSub}>{t(language, "visitorsQuickAddHelp")}</Text>
 
       <View style={styles.dailyRow}>
         <AppButton
-          title="Milkman"
+          title={t(language, "visitorsMilkman")}
           onPress={() =>
             navigation.navigate("AddVisitor", { presetType: "Milkman" })
           }
@@ -88,7 +148,7 @@ export const VisitorsScreen: React.FC = () => {
         />
         <View style={{ width: 10 }} />
         <AppButton
-          title="Gardener"
+          title={t(language, "visitorsGardener")}
           onPress={() =>
             navigation.navigate("AddVisitor", {
               presetType: "Electrician/Plumber/Gardener",
@@ -98,7 +158,7 @@ export const VisitorsScreen: React.FC = () => {
         />
         <View style={{ width: 10 }} />
         <AppButton
-          title="Sweeper"
+          title={t(language, "visitorsSweeper")}
           onPress={() =>
             navigation.navigate("AddVisitor", { presetType: "Maid" })
           }
@@ -108,18 +168,38 @@ export const VisitorsScreen: React.FC = () => {
 
       <View style={{ height: 18 }} />
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Frequent Visitors (Top 10)</Text>
-        <View style={{ marginLeft: 12, width: 110 }}>
-          <AppButton title="Refresh" onPress={loadTop} variant="secondary" />
+        <Text style={styles.sectionTitle}>
+          {t(language, "visitorsFrequentTop10")}
+        </Text>
+        <View style={styles.sectionActions}>
+          <View style={{ width: 100 }}>
+            {isSyncing ? (
+              <View style={styles.syncSpinnerWrap}>
+                <ActivityIndicator />
+              </View>
+            ) : (
+              <AppButton
+                title={t(language, "sync")}
+                onPress={manualSyncVisitors}
+                variant="secondary"
+              />
+            )}
+          </View>
+          <View style={{ width: 10 }} />
+          <View style={{ width: 100 }}>
+            <AppButton
+              title={t(language, "visitorsRefresh")}
+              onPress={loadTop}
+              variant="secondary"
+            />
+          </View>
         </View>
       </View>
 
       {loading ? (
-        <Text style={styles.emptyText}>Loading…</Text>
+        <Text style={styles.emptyText}>{t(language, "loading")}</Text>
       ) : topVisitors.length === 0 ? (
-        <Text style={styles.emptyText}>
-          No visitors yet. Add a visitor entry to populate this list.
-        </Text>
+        <Text style={styles.emptyText}>{t(language, "visitorsEmpty")}</Text>
       ) : (
         <FlatList
           data={topVisitors}
@@ -143,7 +223,22 @@ const styles = StyleSheet.create({
   sectionHeader: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
     marginBottom: 8,
+  },
+  sectionActions: {
+    marginLeft: 12,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  syncSpinnerWrap: {
+    height: 40,
+    borderWidth: 1,
+    borderColor: "#cfd8dc",
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#fff",
   },
   // sectionTitle: {
   //   fontSize: 16,

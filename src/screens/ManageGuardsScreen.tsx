@@ -18,6 +18,8 @@ import { RootStackParamList } from "../navigation/RootNavigator";
 import { AppButton } from "../components/AppButton";
 import { Guard, loadGuards, saveGuards } from "../storage/guards";
 import { useSession } from "../context/SessionContext";
+import { useSettings } from "../context/SettingsContext";
+import { t } from "../i18n/strings";
 
 type Props = NativeStackScreenProps<RootStackParamList, "ManageGuards">;
 
@@ -30,6 +32,7 @@ type EditDraft = {
 
 export const ManageGuardsScreen: React.FC<Props> = () => {
   const { session } = useSession();
+  const { language } = useSettings();
 
   const [guards, setGuards] = useState<Guard[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
@@ -60,16 +63,19 @@ export const ManageGuardsScreen: React.FC<Props> = () => {
   const confirmDelete = (item: Guard) => {
     if (isActiveGuard(item.id)) {
       Alert.alert(
-        "Cannot delete",
-        `You can't delete ${item.name} while their shift is active.`
+        t(language, "manageGuardsCannotDeleteTitle"),
+        t(language, "manageGuardsCannotDeleteMsg").replace("{name}", item.name),
       );
       return;
     }
 
-    Alert.alert("Delete guard?", "This cannot be undone.", [
-      { text: "Cancel", style: "cancel" },
+    Alert.alert(
+      t(language, "manageGuardsDeleteConfirmTitle"),
+      t(language, "manageGuardsDeleteConfirmMsg"),
+      [
+      { text: t(language, "cancel"), style: "cancel" },
       {
-        text: "Delete",
+        text: t(language, "manageGuardsDelete"),
         style: "destructive",
         onPress: async () => {
           const updated = guards.filter((g) => g.id !== item.id);
@@ -83,8 +89,8 @@ export const ManageGuardsScreen: React.FC<Props> = () => {
   const openEdit = (item: Guard) => {
     if (isActiveGuard(item.id)) {
       Alert.alert(
-        "Cannot edit",
-        `You can't edit ${item.name} while their shift is active.`
+        t(language, "manageGuardsCannotEditTitle"),
+        t(language, "manageGuardsCannotEditMsg").replace("{name}", item.name),
       );
       return;
     }
@@ -139,16 +145,20 @@ export const ManageGuardsScreen: React.FC<Props> = () => {
     const phone = draft.phone.trim();
 
     if (!name || !phone) {
-      Alert.alert("Missing info", "Name and phone number are required.");
+      Alert.alert(
+        t(language, "manageGuardsMissingInfoTitle"),
+        t(language, "manageGuardsMissingInfoMsg"),
+      );
       return;
     }
 
     if (isActiveGuard(draft.id)) {
       Alert.alert(
-        "Cannot edit",
-        `You can't edit ${
-          activeGuardName ?? "this guard"
-        } while their shift is active.`
+        t(language, "manageGuardsCannotEditTitle"),
+        t(language, "manageGuardsCannotEditMsg").replace(
+          "{name}",
+          activeGuardName ?? t(language, "manageGuardsLoadingName"),
+        ),
       );
       return;
     }
@@ -170,12 +180,13 @@ export const ManageGuardsScreen: React.FC<Props> = () => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Manage Guards</Text>
-      <Text style={styles.subtitle}>Edit/delete guards (admin only).</Text>
+      <Text style={styles.title}>{t(language, "manageGuardsTitle")}</Text>
+      <Text style={styles.subtitle}>{t(language, "manageGuardsSubtitle")}</Text>
 
       {activeGuardId ? (
         <Text style={styles.activeNote}>
-          Active shift: {activeGuardName ?? "(loading...)"}
+          {t(language, "manageGuardsActiveShiftLabel")}:{" "}
+          {activeGuardName ?? t(language, "manageGuardsLoadingName")}
         </Text>
       ) : null}
 
@@ -206,7 +217,9 @@ export const ManageGuardsScreen: React.FC<Props> = () => {
                   <Text style={styles.name}>{item.name}</Text>
                   <Text style={styles.phone}>{(item as any).phone ?? "—"}</Text>
                   {blocked ? (
-                    <Text style={styles.badge}>Active shift</Text>
+                    <Text style={styles.badge}>
+                      {t(language, "manageGuardsActiveBadge")}
+                    </Text>
                   ) : null}
                 </View>
               </View>
@@ -229,7 +242,7 @@ export const ManageGuardsScreen: React.FC<Props> = () => {
 
                 <View style={{ width: 110 }}>
                   <AppButton
-                    title="Delete"
+                    title={t(language, "manageGuardsDelete")}
                     onPress={() => confirmDelete(item)}
                     variant="danger"
                     disabled={blocked}
@@ -241,7 +254,7 @@ export const ManageGuardsScreen: React.FC<Props> = () => {
         }}
         ListEmptyComponent={
           <Text style={{ marginTop: 16, color: "#607d8b" }}>
-            No guards found.
+            {t(language, "manageGuardsNoneFound")}
           </Text>
         }
       />
@@ -254,31 +267,33 @@ export const ManageGuardsScreen: React.FC<Props> = () => {
       >
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Edit Guard</Text>
+            <Text style={styles.modalTitle}>{t(language, "manageGuardsEditTitle")}</Text>
 
-            <Text style={styles.fieldLabel}>Name</Text>
+            <Text style={styles.fieldLabel}>{t(language, "guardNameLabel")}</Text>
             <TextInput
               style={styles.textInput}
               value={draft?.name ?? ""}
               onChangeText={(text) =>
                 setDraft((d) => (d ? { ...d, name: text } : d))
               }
-              placeholder="Ramesh"
+              placeholder={t(language, "guardNamePlaceholder")}
             />
 
-            <Text style={[styles.fieldLabel, { marginTop: 12 }]}>Phone</Text>
+            <Text style={[styles.fieldLabel, { marginTop: 12 }]}>
+              {t(language, "guardPhoneLabel")}
+            </Text>
             <TextInput
               style={styles.textInput}
               value={draft?.phone ?? ""}
               onChangeText={(text) =>
                 setDraft((d) => (d ? { ...d, phone: text } : d))
               }
-              placeholder="9876543210"
+              placeholder={t(language, "guardPhonePlaceholder")}
               keyboardType="phone-pad"
             />
 
             <Text style={[styles.fieldLabel, { marginTop: 12 }]}>
-              Photo (optional)
+              {t(language, "photoOptional")}
             </Text>
 
             {draft?.photoUri ? (
@@ -293,7 +308,7 @@ export const ManageGuardsScreen: React.FC<Props> = () => {
             <View style={styles.photoButtonsRow}>
               <View style={{ width: 140 }}>
                 <AppButton
-                  title="Take photo"
+                  title={t(language, "takePhoto")}
                   onPress={takePhoto}
                   variant="secondary"
                 />
@@ -301,7 +316,7 @@ export const ManageGuardsScreen: React.FC<Props> = () => {
               <View style={{ width: 12 }} />
               <View style={{ width: 140 }}>
                 <AppButton
-                  title="Gallery"
+                  title={t(language, "gallery")}
                   onPress={pickFromGallery}
                   variant="secondary"
                 />
@@ -311,13 +326,13 @@ export const ManageGuardsScreen: React.FC<Props> = () => {
             <View style={styles.modalButtonsRow}>
               <View style={{ flex: 1, marginRight: 8 }}>
                 <AppButton
-                  title="Cancel"
+                  title={t(language, "cancel")}
                   onPress={closeEdit}
                   variant="secondary"
                 />
               </View>
               <View style={{ flex: 1, marginLeft: 8 }}>
-                <AppButton title="Save" onPress={saveEdit} />
+                <AppButton title={t(language, "save")} onPress={saveEdit} />
               </View>
             </View>
           </View>
