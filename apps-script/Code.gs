@@ -3,7 +3,6 @@
 const CONFIG = {
   PATROL_SHEET: "PatrolLogs",
   VISITORS_SHEET: "Visitors",
-  TOKEN: "ROSEDALE_GUARD_SYNC_2025", // set "" to disable auth
 };
 
 // ---- Entry points ----
@@ -18,14 +17,15 @@ function doPost(e) {
       return json_({ ok: false, error: "Missing kind" });
     }
 
-    // Optional auth
-    if (CONFIG.TOKEN) {
+    // Optional auth via Script Properties.
+    const expectedToken = getSyncToken_();
+    if (expectedToken) {
       const queryToken = (e && e.parameter && e.parameter.token) || "";
       const headerToken = getHeader_(e, "X-Token") || "";
       const bodyToken = (body && body.token) || "";
       const provided = headerToken || queryToken || bodyToken;
 
-      if (provided !== CONFIG.TOKEN) {
+      if (provided !== expectedToken) {
         return json_({ ok: false, error: "Unauthorized" });
       }
     }
@@ -85,10 +85,6 @@ function handlePatrol_(body) {
     });
   }
 
-  // Ensure time columns are formatted as date/time
-  // createdAt = col 10, finalizedAt = col 11
-  sh.getRange(1, 10, sh.getMaxRows(), 2).setNumberFormat("yyyy-mm-dd hh:mm:ss");
-
   const existingIds = loadExistingRecordIds_(sh);
 
   const values = [];
@@ -120,15 +116,18 @@ function handlePatrol_(body) {
       r.status || "",
       Number(r.completedCount || 0),
       r.pointsScanned || "",
-      toDateOrBlank_(r.createdAt),
-      toDateOrBlank_(r.finalizedAt),
+      toDateTimeText_(r.createdAt),
+      toDateTimeText_(r.finalizedAt),
     ]);
 
     existingIds.add(rid);
   }
 
   if (values.length > 0) {
-    sh.getRange(sh.getLastRow() + 1, 1, values.length, values[0].length).setValues(values);
+    const startRow = sh.getLastRow() + 1;
+    // Keep timestamp text stable as DD/MM/YYYY HH:MM:SS (no Sheets auto-date coercion).
+    sh.getRange(startRow, 10, values.length, 2).setNumberFormat("@");
+    sh.getRange(startRow, 1, values.length, values[0].length).setValues(values);
   }
 
   return json_({ ok: true, inserted: values.length, skipped: skipped });
@@ -174,9 +173,6 @@ function handleVisitors_(body) {
     });
   }
 
-  // createdAt = col 5
-  sh.getRange(1, 5, sh.getMaxRows(), 1).setNumberFormat("yyyy-mm-dd hh:mm:ss");
-
   const existingIds = loadExistingRecordIds_(sh);
 
   const values = [];
@@ -201,7 +197,7 @@ function handleVisitors_(body) {
       r.society || "",
       r.guardId || "",
       r.guardName || "",
-      toDateOrBlank_(r.createdAt),
+      toDateTimeText_(r.createdAt),
       r.visitorId || "",
       r.name || "",
       r.phone || "",
@@ -216,7 +212,10 @@ function handleVisitors_(body) {
   }
 
   if (values.length > 0) {
-    sh.getRange(sh.getLastRow() + 1, 1, values.length, values[0].length).setValues(values);
+    const startRow = sh.getLastRow() + 1;
+    // Keep timestamp text stable as DD/MM/YYYY HH:MM:SS (no Sheets auto-date coercion).
+    sh.getRange(startRow, 5, values.length, 1).setNumberFormat("@");
+    sh.getRange(startRow, 1, values.length, values[0].length).setValues(values);
   }
 
   return json_({ ok: true, inserted: values.length, skipped: skipped });
@@ -269,10 +268,15 @@ function loadExistingRecordIds_(sh) {
   return set;
 }
 
-function toDateOrBlank_(v) {
+function toDateTimeText_(v) {
   if (!v) return "";
   const d = v instanceof Date ? v : new Date(String(v));
-  return isNaN(d.getTime()) ? "" : d;
+  if (isNaN(d.getTime())) return "";
+  return Utilities.formatDate(
+    d,
+    Session.getScriptTimeZone(),
+    "dd/MM/yyyy HH:mm:ss",
+  );
 }
 
 function getHeader_(e, name) {
@@ -281,6 +285,16 @@ function getHeader_(e, name) {
   try {
     const headers = (e && e.headers) || {};
     return headers[name] || headers[String(name).toLowerCase()] || "";
+  } catch {
+    return "";
+  }
+}
+
+function getSyncToken_() {
+  try {
+    return String(
+      PropertiesService.getScriptProperties().getProperty("SYNC_TOKEN") || "",
+    ).trim();
   } catch {
     return "";
   }

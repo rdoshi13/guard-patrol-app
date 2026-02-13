@@ -2,9 +2,9 @@
 
 React Native (Expo) app for a single shared society device used by guards to:
 - manage shifts,
-- complete QR-based patrols,
-- log visitor entries,
-- sync reports to Google Sheets.
+- perform QR patrol rounds,
+- log visitor check-ins,
+- sync patrol and visitor records to Google Sheets.
 
 ## Tech Stack
 - React Native + Expo
@@ -19,72 +19,66 @@ React Native (Expo) app for a single shared society device used by guards to:
 ## Core Features
 ### Shift management
 - Single active shift at a time (`DAY` or `NIGHT`).
-- Shift session and last session persist across app restarts.
+- Active session and last ended session persist across app restarts.
 
 ### Patrol tracking
-- Guard patrol screen requires active `NIGHT` shift.
-- 6 fixed QR patrol checkpoints.
-- One checkpoint scan per point per hour.
-- Hourly rollups stored as `PatrolHourRecord` with status:
-  - `IN_PROGRESS`
-  - `COMPLETED`
-  - `MISSED`
-- Patrol records are synced to Sheets with idempotent `recordId`.
-
-Note: patrol time window logic is currently left in testing mode in code (`isWithinPatrolWindow` returns `true`).
+- Patrol requires an active `NIGHT` shift.
+- 6 fixed QR checkpoints; each point can be scanned once per hour.
+- Hourly patrol records are stored with `recordId` for idempotent sync.
+- Manual sync is available on the Patrol screen.
+- Patrol time-window enforcement is currently in test mode (`isWithinPatrolWindow` returns `true`).
 
 ### Visitor logging
-- Visitor profiles support autofill by name.
-- Visitor entries are stored as operational logs.
-- Flat data is normalized as:
+- Add visitors with name/phone/type/vehicle/wing/flat.
+- Frequent visitors list supports quick repeat entry.
+- Visitor entries sync with idempotent `recordId`.
+- Flat storage is normalized as:
   - `wing` (`A`/`B`/`C`/`D`)
   - `flatNumber` (digits)
-- Legacy `flat` strings are lazily migrated on read.
+- Legacy combined `flat` values are lazily migrated on read.
+- Manual sync is available on the Visitors screen.
 
 ### Sync behavior
-- Offline-first: all writes go to local storage first.
-- App-open/resume sync cadence:
-  - Patrol and visitor sync runs when last successful sync is older than 12 hours.
-- Manual patrol sync is available from Patrol screen.
-- Sync uses retries, timeouts, and idempotent record IDs.
+- Offline-first: writes are saved locally first.
+- Auto-sync runs on app open/resume when last successful sync is older than 12 hours (separate patrol + visitor timers).
+- Sync includes retry, timeout, and dedupe by `recordId`.
 - Synced records older than 7 days are cleaned up locally.
 
-## Environment
-Set this before build/run:
+## Current Token Setup
 
-- `EXPO_PUBLIC_SHEETS_SYNC_TOKEN` (optional but recommended)
+### App
+- `src/constants/sheets.ts` uses:
+  - `EXPO_PUBLIC_SHEETS_SYNC_TOKEN` when provided
+  - fallback token: `ROSEDALE_GUARD_SYNC_2025`
 
-If token is unset, app sends requests without token.
+### Apps Script
+- `apps-script/Code.gs` currently validates against:
+  - `CONFIG.TOKEN = "ROSEDALE_GUARD_SYNC_2025"`
 
-Apps Script side:
-- Set Script Property `SYNC_TOKEN` to the same value.
-- Leave `SYNC_TOKEN` empty only for controlled local testing.
+For local/dev reliability, both sides must match.
+
+## Google Sheets Schema
+
+### `PatrolLogs`
+`recordId, dateKey, hourWindow, society, guardId, guardName, status, completedCount, pointsScanned, createdAt, finalizedAt`
+
+### `Visitors`
+`recordId, society, guardId, guardName, createdAt, visitorId, name, phone, type, vehicle, wing, flatNumber, event`
 
 ## Project Structure
 - `src/screens` UI screens
 - `src/components` reusable UI elements
-- `src/context` global state
-- `src/storage` AsyncStorage data models and persistence
-- `src/sync` Sheets sync and auto-sync orchestration
+- `src/context` global state providers
+- `src/storage` AsyncStorage models + persistence
+- `src/sync` Sheets sync + auto-sync orchestration
 - `src/navigation` stack/tab navigation
-- `src/constants` app constants and sync config
-- `src/i18n` localized strings (English/Gujarati)
-
-## Google Sheets Integration
-Expected Apps Script kinds:
-- `patrol_hour_records_v1`
-- `visitor_entries_v1`
-
-Reference Apps Script implementation is in:
-- `apps-script/Code.gs`
-
-## Security Notes
-- Admin PIN is intentionally fixed for the single managed device workflow.
-- Treat PIN as operational control, not strong authentication.
-- Sheets token should be configured via environment and Script Properties, not hardcoded in source.
+- `src/constants` config values
+- `src/i18n` English/Gujarati strings
+- `apps-script/Code.gs` Apps Script endpoint
 
 ## Roadmap
-- Re-enable production patrol time window enforcement.
-- Add stronger guard authentication if moving beyond single-device model.
+- Re-enable production patrol time-window enforcement.
+- Move token auth to env + Script Properties for non-dev deployments.
+- Add stronger guard authentication if moving beyond single shared device.
 - Add resident approval flow for visitors.
 - Add multi-device backend sync if deployment scope expands.

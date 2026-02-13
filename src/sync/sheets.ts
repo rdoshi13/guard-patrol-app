@@ -98,17 +98,6 @@ function parseRemoteAck(payloadText: string): {
   // Only treat explicit success as success.
   // Avoid heuristics like substring "ok", which can misclassify {"ok":false}.
   const remoteOk = payload?.ok === true || payload?.success === true;
-  const debugSuffix =
-    payload && typeof payload === "object"
-      ? ` [debug: ${JSON.stringify({
-          version: payload.version,
-          tokenRequired: payload.tokenRequired,
-          queryTokenPresent: payload.queryTokenPresent,
-          headerTokenPresent: payload.headerTokenPresent,
-          bodyTokenPresent: payload.bodyTokenPresent,
-          providedTokenLength: payload.providedTokenLength,
-        })}]`
-      : "";
 
   return {
     remoteOk,
@@ -118,7 +107,7 @@ function parseRemoteAck(payloadText: string): {
       typeof payload?.message === "string"
         ? payload.message
         : typeof payload?.error === "string"
-          ? `${payload.error}${debugSuffix}`
+          ? payload.error
         : payloadText || undefined,
   };
 }
