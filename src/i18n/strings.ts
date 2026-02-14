@@ -35,8 +35,12 @@ const strings = {
       "Patrol and visitor sync runs on app open/resume when the last successful sync is older than 12 hours.",
     settingsAdminTitle: "Admin",
     settingsManageGuards: "Manage Guards",
+    settingsSyncDailyHelpNow: "Sync Daily Help Now",
+    settingsDailyHelpSyncComplete: "Daily Help sync complete",
+    settingsDailyHelpSyncFailed: "Daily Help sync failed",
+    settingsDailyHelpSyncNoData: "No Daily Help templates available in sheet.",
     settingsAdminHelper:
-      "Requires PIN. You can't edit/delete a guard who is currently on duty.",
+      "Manage Guards requires PIN. Daily Help sync does not. You can't edit/delete a guard who is currently on duty.",
 
     // Guard Select
     guardSelectTitle: "Guard Select",
@@ -115,6 +119,7 @@ const strings = {
     visitorsDailyHelp: "Daily Help",
     visitorsQuickAddHelp: "Quick add common daily staff",
     visitorsCourier: "Courier/Delivery",
+    visitorsMaid: "Maid",
     visitorsGuest: "Guest",
     visitorsPaperboy: "Paperboy",
     visitorsMilkman: "Milkman",
@@ -124,7 +129,12 @@ const strings = {
     visitorsRefresh: "Refresh",
     visitorsSyncComplete: "Visitor sync complete",
     visitorsSyncFailed: "Visitor sync failed",
+    visitorsSyncVisitorRecordsLabel: "Visitor records",
+    visitorsSyncDailyHelpLabel: "Daily Help templates",
     visitorsSyncNoPending: "No pending visitor records to sync.",
+    visitorsDailyHelpSyncNoData: "No Daily Help templates to sync.",
+    visitorsDailyHelpEmpty:
+      "No Daily Help templates yet. Ask admin to add entries in Google Sheet.",
     visitorsAttempted: "Attempted",
     visitorsSynced: "Synced",
     visitorsSkipped: "Skipped",
@@ -141,7 +151,10 @@ const strings = {
     addVisitorPhonePlaceholder: "Enter phone",
     addVisitorFlatLabel: "Flat",
     addVisitorWingLabel: "Wing",
+    addVisitorWingRosedale: "Rosedale",
     addVisitorFlatNumberLabel: "Flat",
+    addVisitorRosedaleFlatFixed:
+      "Society-wide entry selected. Flat is fixed to 000.",
     addVisitorSavedAs: "Saved as",
     addVisitorVehicleLabel: "Vehicle",
     addVisitorPhotoLabel: "Photo",
@@ -218,8 +231,12 @@ const strings = {
       "છેલ્લી સફળ સિંકને 12 કલાકથી વધુ થયા હોય ત્યારે એપ ખુલતા અથવા ફરી સક્રિય થતા પેટ્રોલ અને વિઝિટર સિંક થાય છે.",
     settingsAdminTitle: "એડમિન",
     settingsManageGuards: "ગાર્ડ મેનેજ કરો",
+    settingsSyncDailyHelpNow: "ડેઇલી હેલ્પ હમણાં સિંક કરો",
+    settingsDailyHelpSyncComplete: "ડેઇલી હેલ્પ સિંક પૂર્ણ",
+    settingsDailyHelpSyncFailed: "ડેઇલી હેલ્પ સિંક નિષ્ફળ",
+    settingsDailyHelpSyncNoData: "શીટમાં ડેઇલી હેલ્પ ટેમ્પલેટ્સ ઉપલબ્ધ નથી.",
     settingsAdminHelper:
-      "PIN જરૂરી છે. હાલ ડ્યૂટી પર રહેલા ગાર્ડને edit/delete કરી શકાતાં નથી.",
+      "ગાર્ડ મેનેજ કરવા PIN જરૂરી છે. ડેઇલી હેલ્પ સિંક માટે PIN જરૂરી નથી. હાલ ડ્યૂટી પર રહેલા ગાર્ડને edit/delete કરી શકાતાં નથી.",
 
     // Guard Select
     guardSelectTitle: "ગાર્ડ પસંદ કરો",
@@ -296,6 +313,7 @@ const strings = {
     visitorsDailyHelp: "દૈનિક મદદ",
     visitorsQuickAddHelp: "રોજના સ્ટાફ માટે ઝડપી ઉમેરો",
     visitorsCourier: "કુરિયર/ડિલિવરી",
+    visitorsMaid: "કામવાળી",
     visitorsGuest: "મહેમાન",
     visitorsPaperboy: "છાપાવાળો",
     visitorsMilkman: "દૂધવાળો",
@@ -305,7 +323,12 @@ const strings = {
     visitorsRefresh: "રીફ્રેશ",
     visitorsSyncComplete: "મહેમાન સિંક પૂર્ણ",
     visitorsSyncFailed: "મહેમાન સિંક નિષ્ફળ",
+    visitorsSyncVisitorRecordsLabel: "મહેમાન રેકોર્ડ્સ",
+    visitorsSyncDailyHelpLabel: "ડેઇલી હેલ્પ ટેમ્પલેટ્સ",
     visitorsSyncNoPending: "સિંક કરવા માટે કોઈ બાકી મહેમાન રેકોર્ડ નથી.",
+    visitorsDailyHelpSyncNoData: "સિંક કરવા માટે ડેઇલી હેલ્પ ટેમ્પલેટ્સ નથી.",
+    visitorsDailyHelpEmpty:
+      "હજુ ડેઇલી હેલ્પ ટેમ્પલેટ્સ નથી. એડમિનને Google Sheet માં એન્ટ્રી ઉમેરવા કહો.",
     visitorsAttempted: "પ્રયાસ",
     visitorsSynced: "સિંક થયેલ",
     visitorsSkipped: "છોડેલ",
@@ -321,7 +344,10 @@ const strings = {
     addVisitorPhonePlaceholder: "ફોન દાખલ કરો",
     addVisitorFlatLabel: "ફ્લેટ",
     addVisitorWingLabel: "વિંગ",
+    addVisitorWingRosedale: "રોઝડેલ",
     addVisitorFlatNumberLabel: "ફ્લેટ નંબર",
+    addVisitorRosedaleFlatFixed:
+      "સોસાયટી-વાઈડ એન્ટ્રી પસંદ છે. ફ્લેટ 000 ફિક્સ રહેશે.",
     addVisitorSavedAs: "આ રીતે સાચવાશે",
     addVisitorVehicleLabel: "વાહન",
     addVisitorPhotoLabel: "ફોટો",

@@ -11,16 +11,18 @@ import {
 } from "react-native";
 import { AppButton } from "../components/AppButton";
 import * as ImagePicker from "expo-image-picker";
-import { useNavigation } from "@react-navigation/native";
+import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
 import {
   VisitType,
   VehicleType,
   VisitorProfile,
+  VisitorWing,
   loadVisitorProfiles,
   upsertVisitorProfile,
   addVisitorEntry,
   parseLegacyFlat,
 } from "../storage/visitors";
+import { RootStackParamList } from "../navigation/RootNavigator";
 import { useSession } from "../context/SessionContext";
 import { useSettings } from "../context/SettingsContext";
 import { t } from "../i18n/strings";
@@ -28,13 +30,14 @@ import { t } from "../i18n/strings";
 const VISIT_TYPES: VisitType[] = [
   "Courier/Delivery",
   "Maid",
+  "Sweeper",
   "Guest",
   "Electrician/Plumber/Gardener",
   "Milkman",
   "Paperboy",
 ];
 
-const WINGS = ["A", "B", "C", "D"] as const;
+const WINGS = ["A", "B", "C", "D", "ROSEDALE"] as const;
 
 const FLATS_IN_WING = [
   "101",
@@ -51,11 +54,16 @@ const FLATS_IN_WING = [
 ] as const;
 
 type Wing = (typeof WINGS)[number];
-type FlatNumber = (typeof FLATS_IN_WING)[number];
 const VEHICLE_TYPES: VehicleType[] = ["None", "Car", "Bike", "Cycle"];
+
+const DEFAULT_WING: Wing = "A";
+const DEFAULT_FLAT = "101";
+
+type AddVisitorRoute = RouteProp<RootStackParamList, "AddVisitor">;
 
 export const AddVisitorScreen: React.FC = () => {
   const navigation = useNavigation<any>();
+  const route = useRoute<AddVisitorRoute>();
   const { session } = useSession();
   const { language } = useSettings();
   const canSave = !!session;
@@ -63,8 +71,8 @@ export const AddVisitorScreen: React.FC = () => {
   const [allProfiles, setAllProfiles] = useState<VisitorProfile[]>([]);
 
   const [type, setType] = useState<VisitType>("Guest");
-  const [wing, setWing] = useState<Wing>("A");
-  const [flatNumber, setFlatNumber] = useState<FlatNumber>("101");
+  const [wing, setWing] = useState<Wing>(DEFAULT_WING);
+  const [flatNumber, setFlatNumber] = useState<string>(DEFAULT_FLAT);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
 
@@ -80,6 +88,52 @@ export const AddVisitorScreen: React.FC = () => {
     };
     init();
   }, []);
+
+  const isSocietyWide = wing === "ROSEDALE";
+  const savedFlatNumber = isSocietyWide ? "000" : flatNumber;
+
+  const resolveWing = (input: unknown): Wing | null => {
+    if (typeof input !== "string") return null;
+    const normalized = input.trim().toUpperCase();
+    return WINGS.includes(normalized as Wing) ? (normalized as Wing) : null;
+  };
+
+  useEffect(() => {
+    const prefill = route.params?.prefill;
+    if (!prefill) return;
+
+    if (typeof prefill.name === "string") setName(prefill.name);
+    if (typeof prefill.phone === "string") setPhone(prefill.phone);
+
+    if (prefill.type && VISIT_TYPES.includes(prefill.type)) {
+      setType(prefill.type);
+    }
+
+    if (prefill.vehicle && VEHICLE_TYPES.includes(prefill.vehicle)) {
+      setVehicle(prefill.vehicle);
+    }
+
+    const prefillWing = resolveWing(prefill.wing);
+    if (prefillWing) {
+      setWing(prefillWing);
+      if (prefillWing === "ROSEDALE") {
+        setFlatNumber("000");
+      } else if (
+        typeof prefill.flatNumber === "string" &&
+        FLATS_IN_WING.includes(prefill.flatNumber as (typeof FLATS_IN_WING)[number])
+      ) {
+        setFlatNumber(prefill.flatNumber);
+      } else {
+        setFlatNumber(DEFAULT_FLAT);
+      }
+    }
+
+    if (typeof prefill.photoUri === "string") {
+      setPhotoUri(prefill.photoUri);
+    }
+
+    setShowSuggestions(false);
+  }, [route.params?.prefill]);
 
   // starts-with only suggestions (case-insensitive)
   const suggestions = useMemo(() => {
@@ -141,9 +195,15 @@ export const AddVisitorScreen: React.FC = () => {
     const w = p.wing ?? parsedLegacy.wing;
     const f = p.flatNumber ?? parsedLegacy.flatNumber;
 
-    if (w && WINGS.includes(w as Wing)) setWing(w as Wing);
-    if (f && FLATS_IN_WING.includes(f as FlatNumber)) {
-      setFlatNumber(f as FlatNumber);
+    if (w && WINGS.includes(w as Wing)) {
+      setWing(w as Wing);
+      if (w === "ROSEDALE") {
+        setFlatNumber("000");
+      } else if (f && FLATS_IN_WING.includes(f as (typeof FLATS_IN_WING)[number])) {
+        setFlatNumber(f);
+      } else {
+        setFlatNumber(DEFAULT_FLAT);
+      }
     }
 
     setShowSuggestions(false);
@@ -183,7 +243,7 @@ export const AddVisitorScreen: React.FC = () => {
         type,
         vehicle,
         wing,
-        flatNumber,
+        flatNumber: savedFlatNumber,
         photoUri,
       });
 
@@ -197,7 +257,7 @@ export const AddVisitorScreen: React.FC = () => {
         type,
         vehicle,
         wing,
-        flatNumber,
+        flatNumber: savedFlatNumber,
         event: "CHECKIN",
       });
 
@@ -215,6 +275,7 @@ export const AddVisitorScreen: React.FC = () => {
     const keyMap: Record<
       VisitType,
       | "visitorsCourier"
+      | "visitorsMaid"
       | "visitorsSweeper"
       | "visitorsGuest"
       | "visitorsGardener"
@@ -222,8 +283,9 @@ export const AddVisitorScreen: React.FC = () => {
       | "visitorsPaperboy"
     > = {
       "Courier/Delivery": "visitorsCourier",
+      Maid: "visitorsMaid",
+      Sweeper: "visitorsSweeper",
       Milkman: "visitorsMilkman",
-      Maid: "visitorsSweeper",
       Guest: "visitorsGuest",
       Paperboy: "visitorsPaperboy",
       "Electrician/Plumber/Gardener": "visitorsGardener",
@@ -239,6 +301,13 @@ export const AddVisitorScreen: React.FC = () => {
       Cycle: language === "gu" ? "સાયકલ" : "Cycle",
     };
     return map[vehicleType] ?? vehicleType;
+  };
+
+  const wingLabel = (wingValue: VisitorWing) => {
+    if (wingValue === "ROSEDALE") {
+      return t(language, "addVisitorWingRosedale");
+    }
+    return wingValue;
   };
 
   const renderSuggestion = (item: VisitorProfile, isLast: boolean) => (
@@ -338,10 +407,20 @@ export const AddVisitorScreen: React.FC = () => {
           <TouchableOpacity
             key={w}
             style={[styles.pill, w === wing && styles.pillSelected]}
-            onPress={() => setWing(w)}
+            onPress={() => {
+              setWing(w);
+              if (w === "ROSEDALE") {
+                setFlatNumber("000");
+                return;
+              }
+
+              if (!FLATS_IN_WING.includes(flatNumber as (typeof FLATS_IN_WING)[number])) {
+                setFlatNumber(DEFAULT_FLAT);
+              }
+            }}
             activeOpacity={0.8}
           >
-            <Text style={styles.pillText}>{w}</Text>
+            <Text style={styles.pillText}>{wingLabel(w)}</Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -349,21 +428,25 @@ export const AddVisitorScreen: React.FC = () => {
       <Text style={styles.subLabel}>
         {t(language, "addVisitorFlatNumberLabel")}
       </Text>
-      <View style={styles.pillsRow}>
-        {FLATS_IN_WING.map((f) => (
-          <TouchableOpacity
-            key={f}
-            style={[styles.pill, f === flatNumber && styles.pillSelected]}
-            onPress={() => setFlatNumber(f)}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.pillText}>{f}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+      {isSocietyWide ? (
+        <Text style={styles.helperText}>{t(language, "addVisitorRosedaleFlatFixed")}</Text>
+      ) : (
+        <View style={styles.pillsRow}>
+          {FLATS_IN_WING.map((f) => (
+            <TouchableOpacity
+              key={f}
+              style={[styles.pill, f === flatNumber && styles.pillSelected]}
+              onPress={() => setFlatNumber(f)}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.pillText}>{f}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
 
       <Text style={styles.helperText}>
-        {t(language, "addVisitorSavedAs")} {wing}-{flatNumber}
+        {t(language, "addVisitorSavedAs")} {wingLabel(wing)}-{savedFlatNumber}
       </Text>
       {/* Vehicle */}
       <Text style={styles.label}>{t(language, "addVisitorVehicleLabel")}</Text>

@@ -2,15 +2,26 @@
 import React from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { HomeScreen } from "../screens/HomeScreen";
-import { MainTabs, MainTabParamList } from "./MainTabs";
+import { MainTabs } from "./MainTabs";
 import { AddVisitorScreen } from "../screens/AddVisitorScreen";
 import { AdminPinScreen } from "../screens/AdminPinScreen";
 import { ManageGuardsScreen } from "../screens/ManageGuardsScreen";
+import { VisitType, VehicleType, VisitorWing } from "../storage/visitors";
+
+export type AddVisitorPrefill = {
+  name?: string;
+  phone?: string;
+  type?: VisitType;
+  vehicle?: VehicleType;
+  wing?: VisitorWing;
+  flatNumber?: string;
+  photoUri?: string;
+};
 
 export type RootStackParamList = {
   Home: undefined;
   MainTabs: { initialTab?: "Shift" | "Patrol" | "Visitors" | "Settings" };
-  AddVisitor: undefined;
+  AddVisitor: { prefill?: AddVisitorPrefill } | undefined;
   AdminPin: undefined;
   ManageGuards: undefined;
 };

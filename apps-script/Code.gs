@@ -3,11 +3,28 @@
 const CONFIG = {
   PATROL_SHEET: "PatrolLogs",
   VISITORS_SHEET: "Visitors",
+  DAILY_HELP_SHEET: "DailyHelp",
 };
 
 // ---- Entry points ----
-function doGet() {
-  return json_({ ok: true, message: "Rosedale sync service is running" });
+function doGet(e) {
+  try {
+    const kind = (e && e.parameter && e.parameter.kind) || "";
+    if (!kind) {
+      return json_({ ok: true, message: "Rosedale sync service is running" });
+    }
+
+    const auth = ensureAuthorized_(e, null);
+    if (!auth.ok) return auth.response;
+
+    if (kind === "daily_help_templates_v1") {
+      return handleDailyHelpTemplatesGet_();
+    }
+
+    return json_({ ok: false, error: "Unknown kind" });
+  } catch (err) {
+    return json_({ ok: false, error: String(err) });
+  }
 }
 
 function doPost(e) {
@@ -17,18 +34,8 @@ function doPost(e) {
       return json_({ ok: false, error: "Missing kind" });
     }
 
-    // Optional auth via Script Properties.
-    const expectedToken = getSyncToken_();
-    if (expectedToken) {
-      const queryToken = (e && e.parameter && e.parameter.token) || "";
-      const headerToken = getHeader_(e, "X-Token") || "";
-      const bodyToken = (body && body.token) || "";
-      const provided = headerToken || queryToken || bodyToken;
-
-      if (provided !== expectedToken) {
-        return json_({ ok: false, error: "Unauthorized" });
-      }
-    }
+    const auth = ensureAuthorized_(e, body);
+    if (!auth.ok) return auth.response;
 
     if (body.kind === "patrol_hour_records_v1") {
       return handlePatrol_(body);
@@ -42,6 +49,81 @@ function doPost(e) {
   } catch (err) {
     return json_({ ok: false, error: String(err) });
   }
+}
+
+function handleDailyHelpTemplatesGet_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sh = ensureSheet_(ss, CONFIG.DAILY_HELP_SHEET);
+
+  ensureHeaders_(sh, [
+    "active",
+    "displayOrder",
+    "name",
+    "phone",
+    "type",
+    "vehicle",
+    "wing",
+    "flatNumber",
+    "photoUrl",
+  ]);
+
+  // Keep phone/flat columns as text so values like 000 are preserved.
+  const formatRows = Math.max(sh.getLastRow() - 1, 1);
+  sh.getRange(2, 4, formatRows, 1).setNumberFormat("@");
+  sh.getRange(2, 8, formatRows, 1).setNumberFormat("@");
+
+  const lastRow = sh.getLastRow();
+  if (lastRow < 2) {
+    return json_({
+      ok: true,
+      templates: [],
+      skipped: 0,
+      message: "No Daily Help templates found",
+    });
+  }
+
+  const rows = sh.getRange(2, 1, lastRow - 1, 9).getValues();
+  const templates = [];
+  let skipped = 0;
+
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i] || [];
+    const active = r[0];
+    const displayOrder = r[1];
+    const name = String(r[2] || "").trim();
+    const phone = String(r[3] || "").trim();
+    const type = String(r[4] || "").trim();
+    const vehicle = String(r[5] || "").trim();
+    const wing = String(r[6] || "").trim();
+    const flatNumberRaw = String(r[7] || "").trim();
+    const photoUrl = String(r[8] || "").trim();
+    const wingUpper = wing.toUpperCase();
+    const flatNumber = wingUpper === "ROSEDALE" ? "000" : flatNumberRaw;
+
+    if (!name && !phone && !type && !wing && !flatNumber) {
+      skipped += 1;
+      continue;
+    }
+
+    templates.push({
+      active,
+      displayOrder,
+      name,
+      phone,
+      type,
+      vehicle,
+      wing,
+      flatNumber,
+      photoUrl,
+    });
+  }
+
+  return json_({
+    ok: true,
+    templates,
+    skipped,
+    message: "Daily Help templates fetched",
+  });
 }
 
 // ---- Handlers ----
@@ -215,6 +297,9 @@ function handleVisitors_(body) {
     const startRow = sh.getLastRow() + 1;
     // Keep timestamp text stable as DD/MM/YYYY HH:MM:SS (no Sheets auto-date coercion).
     sh.getRange(startRow, 5, values.length, 1).setNumberFormat("@");
+    // Keep phone and flatNumber as text to avoid numeric coercion (e.g. 000 -> 0).
+    sh.getRange(startRow, 8, values.length, 1).setNumberFormat("@");
+    sh.getRange(startRow, 12, values.length, 1).setNumberFormat("@");
     sh.getRange(startRow, 1, values.length, values[0].length).setValues(values);
   }
 
@@ -298,4 +383,22 @@ function getSyncToken_() {
   } catch {
     return "";
   }
+}
+
+function ensureAuthorized_(e, body) {
+  const expectedToken = getSyncToken_();
+  if (!expectedToken) {
+    return { ok: true };
+  }
+
+  const queryToken = (e && e.parameter && e.parameter.token) || "";
+  const headerToken = getHeader_(e, "X-Token") || "";
+  const bodyToken = (body && body.token) || "";
+  const provided = headerToken || queryToken || bodyToken;
+
+  if (provided !== expectedToken) {
+    return { ok: false, response: json_({ ok: false, error: "Unauthorized" }) };
+  }
+
+  return { ok: true };
 }

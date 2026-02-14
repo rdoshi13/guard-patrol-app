@@ -10,6 +10,7 @@ import {
   markVisitorEntriesSynced,
   cleanupSyncedVisitorEntries,
 } from "../storage/visitors";
+import { replaceDailyHelpTemplatesFromSheet } from "../storage/dailyHelp";
 
 export type SyncResult = {
   ok: boolean;
@@ -30,7 +31,7 @@ type PushRowsResult = SyncResult & {
   remoteSkipped: number;
 };
 
-async function postJsonWithTimeout(
+async function requestWithTimeout(
   url: string,
   init: Omit<RequestInit, "signal">,
   timeoutMs: number,
@@ -50,6 +51,11 @@ function withToken(url: string, token?: string): string {
 
   const sep = url.includes("?") ? "&" : "?";
   return `${url}${sep}token=${encodeURIComponent(token)}`;
+}
+
+function withKind(url: string, kind: string): string {
+  const sep = url.includes("?") ? "&" : "?";
+  return `${url}${sep}kind=${encodeURIComponent(kind)}`;
 }
 
 async function sleep(ms: number): Promise<void> {
@@ -73,7 +79,37 @@ async function postWithSilentRetry(
         await sleep(base + jitter);
       }
 
-      return await postJsonWithTimeout(url, init, timeoutMs);
+      return await requestWithTimeout(url, init, timeoutMs);
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+
+  throw lastErr ?? new Error("Request failed");
+}
+
+async function getWithSilentRetry(
+  url: string,
+  timeoutMs: number,
+  attempts: number,
+): Promise<Response> {
+  let lastErr: unknown = null;
+
+  for (let i = 0; i < attempts; i += 1) {
+    try {
+      if (i > 0) {
+        const base = 800 * 2 ** (i - 1);
+        const jitter = Math.floor(Math.random() * 250);
+        await sleep(base + jitter);
+      }
+
+      return await requestWithTimeout(
+        url,
+        {
+          method: "GET",
+        },
+        timeoutMs,
+      );
     } catch (e) {
       lastErr = e;
     }
@@ -275,13 +311,84 @@ export async function syncVisitorEntries(
   return pushed;
 }
 
+export async function syncDailyHelpTemplates(
+  cfg: SyncConfig,
+): Promise<SyncResult> {
+  const timeoutMs = cfg.timeoutMs ?? 12_000;
+  const url = withToken(withKind(cfg.url, "daily_help_templates_v1"), cfg.token);
+
+  try {
+    const res = await getWithSilentRetry(url, timeoutMs, 3);
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      return {
+        ok: false,
+        attempted: 0,
+        synced: 0,
+        skipped: 0,
+        message: `HTTP ${res.status} ${text}`.trim(),
+      };
+    }
+
+    const payloadText = await res.text().catch(() => "");
+    let payload: any = null;
+    try {
+      payload = payloadText ? JSON.parse(payloadText) : null;
+    } catch {
+      payload = null;
+    }
+
+    const remoteOk = payload?.ok === true || payload?.success === true;
+    if (!remoteOk) {
+      return {
+        ok: false,
+        attempted: 0,
+        synced: 0,
+        skipped: 0,
+        message:
+          (typeof payload?.error === "string" && payload.error) ||
+          (typeof payload?.message === "string" && payload.message) ||
+          "Remote did not confirm success",
+      };
+    }
+
+    const rows = Array.isArray(payload?.templates) ? payload.templates : [];
+    const write = await replaceDailyHelpTemplatesFromSheet(rows);
+    const remoteSkipped =
+      typeof payload?.skipped === "number" && payload.skipped >= 0
+        ? payload.skipped
+        : 0;
+
+    return {
+      ok: true,
+      attempted: rows.length,
+      synced: write.saved,
+      skipped: write.skipped + remoteSkipped,
+      message: typeof payload?.message === "string" ? payload.message : undefined,
+    };
+  } catch (e: any) {
+    return {
+      ok: false,
+      attempted: 0,
+      synced: 0,
+      skipped: 0,
+      message:
+        e?.name === "AbortError"
+          ? "Sync request timed out"
+          : (e?.message ?? String(e)),
+    };
+  }
+}
+
 export async function syncAllPending(cfg: SyncConfig): Promise<{
   patrol: SyncResult;
   visitors: SyncResult;
+  dailyHelp: SyncResult;
 }> {
   const patrol = await syncPatrolHourRecords(cfg);
   const visitors = await syncVisitorEntries(cfg);
-  return { patrol, visitors };
+  const dailyHelp = await syncDailyHelpTemplates(cfg);
+  return { patrol, visitors, dailyHelp };
 }
 
 // Back-compat alias
