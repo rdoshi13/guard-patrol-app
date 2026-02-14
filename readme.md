@@ -1,10 +1,11 @@
 # Rosedale Guard Patrol App
 
 React Native (Expo) app for a single shared society device used by guards to:
-- manage shifts,
-- perform QR patrol rounds,
+- manage guard shifts,
+- run QR patrol rounds,
 - log visitor check-ins,
-- sync patrol and visitor records to Google Sheets.
+- use Daily Help quick-add templates,
+- sync data with Google Sheets.
 
 ## Tech Stack
 - React Native + Expo
@@ -17,6 +18,7 @@ React Native (Expo) app for a single shared society device used by guards to:
 - Google Apps Script Web App + Google Sheets
 
 ## Core Features
+
 ### Shift management
 - Single active shift at a time (`DAY` or `NIGHT`).
 - Active session and last ended session persist across app restarts.
@@ -29,41 +31,72 @@ React Native (Expo) app for a single shared society device used by guards to:
 - Patrol time-window enforcement is currently in test mode (`isWithinPatrolWindow` returns `true`).
 
 ### Visitor logging
-- Add visitors with name/phone/type/vehicle/wing/flat.
-- Frequent visitors list supports quick repeat entry.
+- Add visitors with name, phone, type, vehicle, wing, and flat.
 - Visitor entries sync with idempotent `recordId`.
-- Flat storage is normalized as:
-  - `wing` (`A`/`B`/`C`/`D`)
-  - `flatNumber` (digits)
+- Frequent visitors list supports quick repeat entry.
+- Visitor and suggestion avatars use image when available and initials fallback when image is missing/broken.
+- Wing supports `A`, `B`, `C`, `D`, and `ROSEDALE`.
+- For `ROSEDALE`, flat is fixed and stored as `"000"` (society-wide entry).
 - Legacy combined `flat` values are lazily migrated on read.
-- Manual sync is available on the Visitors screen.
+
+### Daily Help templates (Sheet-managed)
+- Source of truth is Google Sheet tab `DailyHelp`.
+- App pulls templates from Apps Script `doGet` (`kind=daily_help_templates_v1`).
+- Templates are normalized, deduped by phone, sorted by `displayOrder`, and capped to top 10.
+- Manual Daily Help pull is available in Settings (`Sync Daily Help Now`) and Visitors (`Sync` button).
+- Visitors `Sync` does two actions: push visitor records and pull Daily Help templates.
+- If pulled templates are unchanged vs local cache, sync result returns no updates.
 
 ### Sync behavior
 - Offline-first: writes are saved locally first.
-- Auto-sync runs on app open/resume when last successful sync is older than 12 hours (separate patrol + visitor timers).
+- Auto-sync runs on app open/resume when last successful sync is older than 12 hours.
+- Patrol, visitors, and Daily Help have separate last-sync timers.
 - Sync includes retry, timeout, and dedupe by `recordId`.
-- Synced records older than 7 days are cleaned up locally.
+- Synced patrol/visitor records older than 7 days are cleaned up locally.
 
-## Current Token Setup
-
-### App
-- `src/constants/sheets.ts` uses:
-  - `EXPO_PUBLIC_SHEETS_SYNC_TOKEN` when provided
-  - fallback token: `ROSEDALE_GUARD_SYNC_2025`
-
-### Apps Script
-- `apps-script/Code.gs` currently validates against:
-  - `CONFIG.TOKEN = "ROSEDALE_GUARD_SYNC_2025"`
-
-For local/dev reliability, both sides must match.
-
-## Google Sheets Schema
+## Google Sheets Contract
 
 ### `PatrolLogs`
 `recordId, dateKey, hourWindow, society, guardId, guardName, status, completedCount, pointsScanned, createdAt, finalizedAt`
 
 ### `Visitors`
 `recordId, society, guardId, guardName, createdAt, visitorId, name, phone, type, vehicle, wing, flatNumber, event`
+
+### `DailyHelp`
+`active, displayOrder, name, phone, type, vehicle, wing, flatNumber, photoUrl`
+
+Daily Help parsing rules in app:
+- `active` accepts truthy values like `TRUE`, `1`, `yes`.
+- `wing=ROSEDALE` forces `flatNumber="000"` regardless of sheet value.
+- Invalid rows are skipped.
+- Duplicate phone rows are deduped by lowest `displayOrder`, then row order.
+- Final rendered list is capped to 10 items.
+
+## Token/Auth Setup
+
+### App
+- Sync URL/token config is in `src/constants/sheets.ts`.
+- Token is read from env var `EXPO_PUBLIC_SHEETS_SYNC_TOKEN`.
+
+### Apps Script
+- Token is read from Script Property `SYNC_TOKEN` in `apps-script/Code.gs`.
+- If `SYNC_TOKEN` is empty/missing, endpoint accepts requests without token.
+- If set, token can be provided by query (`?token=`), request body (`token`), or `X-Token` header.
+
+## Run and Build
+
+### Run locally
+- `npm run start`
+- `npm run android`
+- `npm run ios`
+
+### Local debug APK
+- Build command: `cd android && ./gradlew app:assembleDebug`
+- APK path: `android/app/build/outputs/apk/debug/app-debug.apk`
+
+### EAS APK (shareable build)
+- `npx eas login`
+- `npx eas build -p android --profile apk`
 
 ## Project Structure
 - `src/screens` UI screens
@@ -76,9 +109,6 @@ For local/dev reliability, both sides must match.
 - `src/i18n` English/Gujarati strings
 - `apps-script/Code.gs` Apps Script endpoint
 
-## Roadmap
-- Re-enable production patrol time-window enforcement.
-- Move token auth to env + Script Properties for non-dev deployments.
-- Add stronger guard authentication if moving beyond single shared device.
-- Add resident approval flow for visitors.
-- Add multi-device backend sync if deployment scope expands.
+## Pre-Launch Checklist
+
+See `/Users/maruti/Documents/Projects/guard-patrol-app/Checklist.md`.

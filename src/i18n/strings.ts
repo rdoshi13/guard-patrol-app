@@ -1,6 +1,6 @@
 // src/i18n/strings.ts
 
-export type SupportedLanguage = "en" | "gu";
+export type SupportedLanguage = "en" | "gu" | "hi";
 
 const strings = {
   en: {
@@ -31,6 +31,7 @@ const strings = {
     currentLanguage: "Current language",
     english: "English",
     gujarati: "Gujarati",
+    hindi: "Hindi",
     settingsSyncHelper:
       "Patrol and visitor sync runs on app open/resume when the last successful sync is older than 12 hours.",
     settingsAdminTitle: "Admin",
@@ -203,7 +204,7 @@ const strings = {
     // Common
     ok: "ઠીક છે",
     cancel: "રદ કરો",
-    save: "સાચવો",
+    save: "સેવ",
     continue: "આગળ વધો",
     sync: "સિંક",
     loading: "લોડ થઈ રહ્યું છે…",
@@ -217,7 +218,7 @@ const strings = {
     startedAt: "શરૂઆત સમય",
     endedAt: "સમાપ્તિ સમય",
     previousShift: "પહેલાંની શિફ્ટ",
-    noActiveShift: "એક્ટિવ શિફ્ટ નથી",
+    noActiveShift: "કોઈ સક્રિય શિફ્ટ નથી",
     endShift: "શિફ્ટ પૂરું કરો",
     homeActions: "ક્રિયાઓ",
 
@@ -227,16 +228,18 @@ const strings = {
     currentLanguage: "હાલની ભાષા",
     english: "અંગ્રેજી",
     gujarati: "ગુજરાતી",
+    hindi: "હિન્દી",
     settingsSyncHelper:
       "છેલ્લી સફળ સિંકને 12 કલાકથી વધુ થયા હોય ત્યારે એપ ખુલતા અથવા ફરી સક્રિય થતા પેટ્રોલ અને વિઝિટર સિંક થાય છે.",
     settingsAdminTitle: "એડમિન",
     settingsManageGuards: "ગાર્ડ મેનેજ કરો",
-    settingsSyncDailyHelpNow: "ડેઇલી હેલ્પ હમણાં સિંક કરો",
-    settingsDailyHelpSyncComplete: "ડેઇલી હેલ્પ સિંક પૂર્ણ",
-    settingsDailyHelpSyncFailed: "ડેઇલી હેલ્પ સિંક નિષ્ફળ",
-    settingsDailyHelpSyncNoData: "સિંક કરવા માટે ડેઇલી હેલ્પમાં કોઈ નવા અપડેટ્સ નથી.",
+    settingsSyncDailyHelpNow: "દૈનિક મદદ હમણાં સિંક કરો",
+    settingsDailyHelpSyncComplete: "દૈનિક મદદ સિંક પૂર્ણ",
+    settingsDailyHelpSyncFailed: "દૈનિક મદદ સિંક નિષ્ફળ",
+    settingsDailyHelpSyncNoData:
+      "સિંક કરવા માટે દૈનિક મદદમાં કોઈ નવા અપડેટ્સ નથી.",
     settingsAdminHelper:
-      "ગાર્ડ મેનેજ કરવા PIN જરૂરી છે. ડેઇલી હેલ્પ સિંક માટે PIN જરૂરી નથી. હાલ ડ્યૂટી પર રહેલા ગાર્ડને edit/delete કરી શકાતાં નથી.",
+      "ગાર્ડ મેનેજ કરવા માટે PIN જરૂરી છે. દૈનિક મદદ સિંક માટે PIN જરૂરી નથી. હાલ ડ્યૂટી પર રહેલા ગાર્ડને એડિટ/ડિલીટ કરી શકાતાં નથી.",
 
     // Guard Select
     guardSelectTitle: "ગાર્ડ પસંદ કરો",
@@ -283,7 +286,7 @@ const strings = {
     patrolNoActiveShiftTitle: "સક્રિય શિફ્ટ નથી",
     patrolNoActiveShiftMsg: "પહેરો વાપરવા માટે શિફ્ટ શરૂ કરો.",
     patrolNightShiftOnlyTitle: "ફક્ત નાઇટ શિફ્ટ",
-    patrolNightShiftOnlyMsg: "પહેરો ફક્ત NIGHT શિફ્ટમાં ઉપલબ્ધ છે.",
+    patrolNightShiftOnlyMsg: "પહેરો ફક્ત રાત્રિ શિફ્ટમાં ઉપલબ્ધ છે.",
     patrolWindowClosedTitle: "પેટ્રોલ વિન્ડો બંધ",
     patrolWindowClosedMsg: "પહેરો ફક્ત 12:00 AM થી 5:00 AM સુધી છે.",
     patrolCameraBlockedTitle: "કેમેરા બંધ છે",
@@ -324,11 +327,12 @@ const strings = {
     visitorsSyncComplete: "મહેમાન સિંક પૂર્ણ",
     visitorsSyncFailed: "મહેમાન સિંક નિષ્ફળ",
     visitorsSyncVisitorRecordsLabel: "મહેમાન રેકોર્ડ્સ",
-    visitorsSyncDailyHelpLabel: "ડેઇલી હેલ્પ ટેમ્પલેટ્સ",
+    visitorsSyncDailyHelpLabel: "દૈનિક મદદ નમૂનાઓ",
     visitorsSyncNoPending: "સિંક કરવા માટે કોઈ બાકી મહેમાન રેકોર્ડ નથી.",
-    visitorsDailyHelpSyncNoData: "સિંક કરવા માટે ડેઇલી હેલ્પમાં કોઈ નવા અપડેટ્સ નથી.",
+    visitorsDailyHelpSyncNoData:
+      "સિંક કરવા માટે દૈનિક મદદમાં કોઈ નવા અપડેટ્સ નથી.",
     visitorsDailyHelpEmpty:
-      "હજુ ડેઇલી હેલ્પ ટેમ્પલેટ્સ નથી. એડમિનને Google Sheet માં એન્ટ્રી ઉમેરવા કહો.",
+      "હજુ દૈનિક મદદના નમૂનાઓ નથી. એડમિનને Google Sheet માં એન્ટ્રી ઉમેરવા કહો.",
     visitorsAttempted: "પ્રયાસ",
     visitorsSynced: "સિંક થયેલ",
     visitorsSkipped: "છોડેલ",
@@ -347,13 +351,13 @@ const strings = {
     addVisitorWingRosedale: "રોઝડેલ",
     addVisitorFlatNumberLabel: "ફ્લેટ નંબર",
     addVisitorRosedaleFlatFixed:
-      "સોસાયટી-વાઈડ એન્ટ્રી પસંદ છે. ફ્લેટ 000 ફિક્સ રહેશે.",
-    addVisitorSavedAs: "આ રીતે સાચવાશે",
+      "સોસાયટી-વ્યાપક એન્ટ્રી પસંદ છે. ફ્લેટ 000 નક્કી રહેશે.",
+    addVisitorSavedAs: "આ રીતે સેવ થશે",
     addVisitorVehicleLabel: "વાહન",
     addVisitorPhotoLabel: "ફોટો",
     addVisitorOptional: "ઐચ્છિક",
     addVisitorStartShiftHint: "મહેમાન ઉમેરવા પહેલાં શિફ્ટ શરૂ કરો.",
-    addVisitorSaveButton: "મહેમાન સાચવો",
+    addVisitorSaveButton: "મહેમાન સેવ કરો",
     addVisitorPermissionNeeded: "પરમિશન જરૂરી છે",
     addVisitorGalleryPermission: "ગેલેરી પરમિશન જરૂરી છે.",
     addVisitorCameraPermission: "કેમેરા પરમિશન જરૂરી છે.",
@@ -362,8 +366,8 @@ const strings = {
     addVisitorStartShiftTitle: "શિફ્ટ શરૂ કરો",
     addVisitorStartShiftMsg: "મહેમાન ઉમેરતા પહેલાં શિફ્ટ શરૂ કરો.",
     addVisitorMissingInfoTitle: "માહિતી અધૂરી છે",
-    addVisitorSaveFailedTitle: "સાચવવામાં નિષ્ફળ",
-    addVisitorSaveFailedMsg: "મહેમાન એન્ટ્રી સાચવી શકાઈ નથી. ફરી પ્રયાસ કરો.",
+    addVisitorSaveFailedTitle: "સેવ કરવામાં નિષ્ફળ",
+    addVisitorSaveFailedMsg: "મહેમાન એન્ટ્રી સેવ થઈ શકી નથી. ફરી પ્રયાસ કરો.",
 
     // Admin PIN
     adminPinTitle: "એડમિન PIN",
@@ -373,7 +377,7 @@ const strings = {
 
     // Manage Guards
     manageGuardsTitle: "ગાર્ડ મેનેજ કરો",
-    manageGuardsSubtitle: "ગાર્ડ edit/delete કરો (ફક્ત એડમિન).",
+    manageGuardsSubtitle: "ગાર્ડને એડિટ/ડિલીટ કરી શકો (ફક્ત એડમિન).",
     manageGuardsActiveShiftLabel: "સક્રિય શિફ્ટ",
     manageGuardsLoadingName: "(લોડ થઈ રહ્યું છે...)",
     manageGuardsCannotDeleteTitle: "ડિલીટ કરી શકાતું નથી",
@@ -384,7 +388,7 @@ const strings = {
     manageGuardsDelete: "ડિલીટ",
     manageGuardsCannotEditTitle: "એડિટ કરી શકાતું નથી",
     manageGuardsCannotEditMsg:
-      "{name} ડ્યૂટી પર હોય ત્યારે તેને edit કરી શકાતું નથી.",
+      "{name} ડ્યૂટી પર હોય ત્યારે તેને એડિટ કરી શકાતું નથી.",
     manageGuardsMissingInfoTitle: "માહિતી અધૂરી છે",
     manageGuardsMissingInfoMsg: "નામ અને ફોન નંબર જરૂરી છે.",
     manageGuardsActiveBadge: "સક્રિય શિફ્ટ",
@@ -393,9 +397,215 @@ const strings = {
   },
 };
 
+const hi: typeof strings.en = {
+  ...strings.en,
+
+  // Common
+  ok: "ठीक है",
+  cancel: "रद्द करें",
+  save: "सेव",
+  continue: "जारी रखें",
+  sync: "सिंक",
+  loading: "लोड हो रहा है…",
+  photoOptional: "फोटो (वैकल्पिक)",
+  takePhoto: "फोटो लें",
+  gallery: "गैलरी",
+
+  // Home
+  homeTitle: "होम",
+  onDuty: "ड्यूटी पर",
+  startedAt: "शुरू हुआ",
+  endedAt: "समाप्त हुआ",
+  previousShift: "पिछली शिफ्ट",
+  noActiveShift: "कोई सक्रिय शिफ्ट नहीं",
+  endShift: "शिफ्ट समाप्त करें",
+  homeActions: "कार्य",
+
+  // Settings
+  goToSettings: "सेटिंग्स खोलें",
+  settingsTitle: "सेटिंग्स",
+  currentLanguage: "वर्तमान भाषा",
+  english: "अंग्रेज़ी",
+  gujarati: "गुजराती",
+  hindi: "हिन्दी",
+  settingsSyncHelper:
+    "जब पिछला सफल सिंक 12 घंटे से पुराना हो, तब ऐप खुलने/फिर सक्रिय होने पर पेट्रोल और विज़िटर सिंक चलता है।",
+  settingsAdminTitle: "एडमिन",
+  settingsManageGuards: "गार्ड मैनेज करें",
+  settingsSyncDailyHelpNow: "दैनिक सहायक अभी सिंक करें",
+  settingsDailyHelpSyncComplete: "दैनिक सहायक सिंक पूरा",
+  settingsDailyHelpSyncFailed: "दैनिक सहायक सिंक असफल",
+  settingsDailyHelpSyncNoData:
+    "सिंक करने के लिए दैनिक सहायक में कोई नया अपडेट नहीं है।",
+  settingsAdminHelper:
+    "गार्ड मैनेज करने के लिए PIN चाहिए। दैनिक सहायक सिंक के लिए PIN नहीं चाहिए। ड्यूटी पर मौजूद गार्ड को ऐडिट/डिलीट नहीं कर सकते।",
+
+  // Guard Select
+  guardSelectTitle: "गार्ड चुनें",
+  startShift: "शिफ्ट शुरू करें → होम",
+  guardNameLabel: "नाम",
+  guardPhoneLabel: "फोन नंबर",
+  guardPhotoLabel: "फोटो URL (वैकल्पिक)",
+  selectGuardLabel: "गार्ड चुनें",
+  selectGuardButton: "गार्ड चुनें",
+  addNewGuard: "नया गार्ड जोड़ें",
+  shiftLabel: "शिफ्ट",
+  day: "दिन",
+  night: "रात",
+  guardPhotoOptional: "फोटो (वैकल्पिक)",
+  permissionNeededTitle: "अनुमति आवश्यक",
+  galleryPermissionMsg: "फोटो चुनने के लिए गैलरी अनुमति दें।",
+  cameraPermissionMsg: "फोटो लेने के लिए कैमरा अनुमति दें।",
+  galleryErrorTitle: "गैलरी त्रुटि",
+  cameraErrorTitle: "कैमरा त्रुटि",
+  galleryOpenFailMsg: "गैलरी नहीं खुल सकी।",
+  cameraOpenFailMsg: "कैमरा नहीं खुल सका।",
+  guardNamePlaceholder: "रमेश",
+  guardPhonePlaceholder: "9876543210",
+
+  // Patrol
+  patrol: "पेट्रोल",
+  patrolTitle: "रात्रि पेट्रोल",
+  patrolNeedShift: "पेट्रोल करने से पहले शिफ्ट शुरू करें।",
+  patrolCurrentShift: "वर्तमान शिफ्ट",
+  patrolLastScan: "आखिरी स्कैन",
+  patrolNotScanned: "अभी तक स्कैन नहीं",
+  patrolScanNow: "अभी स्कैन करें",
+  patrolTodaySummary: "आज का पेट्रोल",
+  patrolCompleted: "पूर्ण पॉइंट्स",
+  patrolNightOnly: "पेट्रोल केवल नाइट शिफ्ट के लिए है",
+  patrolSyncComplete: "सिंक पूरा",
+  patrolSyncFailed: "सिंक असफल",
+  patrolSyncDidNotComplete: "सिंक पूरा नहीं हुआ।",
+  patrolSyncNoPending: "सिंक के लिए कोई लंबित पेट्रोल रिकॉर्ड नहीं है।",
+  patrolAttempted: "प्रयास",
+  patrolSynced: "सिंक हुआ",
+  patrolSkipped: "छोड़ा गया",
+  patrolNoActiveShiftTitle: "कोई सक्रिय शिफ्ट नहीं",
+  patrolNoActiveShiftMsg: "पेट्रोल उपयोग करने के लिए शिफ्ट शुरू करें।",
+  patrolNightShiftOnlyTitle: "केवल नाइट शिफ्ट",
+  patrolNightShiftOnlyMsg: "पेट्रोल केवल रात्रि शिफ्ट में उपलब्ध है।",
+  patrolWindowClosedTitle: "पेट्रोल विंडो बंद",
+  patrolWindowClosedMsg: "पेट्रोल केवल 12:00 AM से 5:00 AM तक अनुमत है।",
+  patrolCameraBlockedTitle: "कैमरा बंद",
+  patrolCameraBlockedMsg: "QR स्कैन के लिए कैमरा अनुमति आवश्यक है।",
+  patrolInvalidCodeTitle: "अमान्य कोड",
+  patrolInvalidCodeMsg: "यह QR कोड Rosedale पेट्रोल पॉइंट नहीं है।",
+  patrolAlreadyScannedTitle: "पहले से स्कैन",
+  patrolAlreadyScannedMsg: "यह पॉइंट इस घंटे के लिए पहले ही स्कैन हो चुका है।",
+  patrolCompleteTitle: "पेट्रोल पूरा",
+  patrolCompleteMsg: "इस घंटे के सभी 6 पॉइंट स्कैन हो गए।",
+  patrolWindowInfo: "पेट्रोल केवल 12:00 AM से 5:00 AM तक अनुमत है।",
+  patrolScanPrompt: "कोई भी पेट्रोल पॉइंट QR स्कैन करें",
+  patrolCameraPermissionMissing: "कैमरा अनुमति नहीं मिली।",
+  patrolTorchOn: "टॉर्च चालू",
+  patrolTorchOff: "टॉर्च बंद",
+  patrolNotStarted: "शुरू नहीं",
+  patrolStatusCompleted: "पूर्ण",
+  patrolStatusMissed: "छूटा",
+  patrolStatusInProgress: "प्रगति में",
+  patrolTonightWindow: "आज रात (12 AM - 5 AM)",
+  guardIdLabel: "गार्ड ID",
+  pointsLabel: "पॉइंट्स",
+  patrolCurrentWindowLabel: "वर्तमान विंडो",
+
+  // Visitors list
+  visitors: "मुलाक़ाती",
+  visitorsAddButton: "मुलाक़ाती जोड़ें",
+  visitorsDailyHelp: "दैनिक सहायक",
+  visitorsQuickAddHelp: "सामान्य दैनिक स्टाफ को जल्दी जोड़ें",
+  visitorsCourier: "कूरियर/डिलीवरी",
+  visitorsMaid: "कामवाली",
+  visitorsGuest: "मेहमान",
+  visitorsPaperboy: "अखबार वाला",
+  visitorsMilkman: "दूधवाला",
+  visitorsGardener: "माली",
+  visitorsSweeper: "सफाईकर्मी",
+  visitorsFrequentTop10: "अक्सर आने वाले मुलाक़ाती (टॉप 10)",
+  visitorsRefresh: "रिफ्रेश",
+  visitorsSyncComplete: "मुलाक़ाती सिंक पूरा",
+  visitorsSyncFailed: "मुलाक़ाती सिंक असफल",
+  visitorsSyncVisitorRecordsLabel: "मुलाक़ाती रिकॉर्ड्स",
+  visitorsSyncDailyHelpLabel: "दैनिक सहायक नमूने",
+  visitorsSyncNoPending:
+    "सिंक करने के लिए कोई लंबित मुलाक़ाती रिकॉर्ड नहीं है।",
+  visitorsDailyHelpSyncNoData:
+    "सिंक करने के लिए दैनिक सहायक में कोई नया अपडेट नहीं है।",
+  visitorsDailyHelpEmpty:
+    "अभी कोई दैनिक सहायक नमूना नहीं है। एडमिन से Google Sheet में एंट्री जोड़ने को कहें।",
+  visitorsAttempted: "प्रयास",
+  visitorsSynced: "सिंक हुआ",
+  visitorsSkipped: "छोड़ा गया",
+  visitorsEmpty:
+    "अभी कोई मुलाक़ाती नहीं है। सूची भरने के लिए मुलाक़ाती एंट्री जोड़ें।",
+  visitorsVisits: "बार",
+  visitorsLast: "आखिरी",
+
+  // Add Visitor
+  addVisitorTypeLabel: "मुलाक़ाती का प्रकार",
+  addVisitorNameLabel: "नाम",
+  addVisitorNamePlaceholder: "नाम दर्ज करें",
+  addVisitorPhoneLabel: "फोन नंबर",
+  addVisitorPhonePlaceholder: "फोन दर्ज करें",
+  addVisitorFlatLabel: "फ्लैट",
+  addVisitorWingLabel: "विंग",
+  addVisitorWingRosedale: "Rosedale",
+  addVisitorFlatNumberLabel: "फ्लैट नंबर",
+  addVisitorRosedaleFlatFixed:
+    "सोसायटी-वाइड एंट्री चुनी गई है। फ्लैट 000 निश्चित रहेगा।",
+  addVisitorSavedAs: "इस रूप में सेव होगा",
+  addVisitorVehicleLabel: "वाहन",
+  addVisitorPhotoLabel: "फोटो",
+  addVisitorOptional: "वैकल्पिक",
+  addVisitorStartShiftHint: "मुलाक़ाती जोड़ने से पहले शिफ्ट शुरू करें।",
+  addVisitorSaveButton: "मुलाक़ाती सेव करें",
+  addVisitorPermissionNeeded: "अनुमति आवश्यक",
+  addVisitorGalleryPermission: "गैलरी अनुमति आवश्यक है।",
+  addVisitorCameraPermission: "कैमरा अनुमति आवश्यक है।",
+  addVisitorValidationName: "नाम आवश्यक है",
+  addVisitorValidationPhone: "मान्य फोन नंबर आवश्यक है",
+  addVisitorStartShiftTitle: "शिफ्ट शुरू करें",
+  addVisitorStartShiftMsg: "मुलाक़ाती जोड़ने से पहले शिफ्ट शुरू करें।",
+  addVisitorMissingInfoTitle: "जानकारी अधूरी है",
+  addVisitorSaveFailedTitle: "सेव विफल",
+  addVisitorSaveFailedMsg:
+    "मुलाक़ाती एंट्री सेव नहीं हो सकी। कृपया फिर प्रयास करें।",
+
+  // Admin PIN
+  adminPinTitle: "एडमिन PIN",
+  adminPinSubtitle: "गार्ड मैनेज करने के लिए 6 अंकों का PIN दर्ज करें।",
+  adminPinWrongTitle: "गलत PIN",
+  adminPinWrongMsg: "कृपया फिर प्रयास करें।",
+
+  // Manage Guards
+  manageGuardsTitle: "गार्ड मैनेज करें",
+  manageGuardsSubtitle: "गार्ड को ऐडिट/डिलीट कर सकते हैं (केवल एडमिन)।",
+  manageGuardsActiveShiftLabel: "सक्रिय शिफ्ट",
+  manageGuardsLoadingName: "(लोड हो रहा है...)",
+  manageGuardsCannotDeleteTitle: "डिलीट नहीं कर सकते",
+  manageGuardsCannotDeleteMsg:
+    "{name} की शिफ्ट सक्रिय होने पर उसे डिलीट नहीं कर सकते।",
+  manageGuardsDeleteConfirmTitle: "गार्ड डिलीट करें?",
+  manageGuardsDeleteConfirmMsg: "इसे वापस नहीं किया जा सकता।",
+  manageGuardsDelete: "डिलीट",
+  manageGuardsCannotEditTitle: "ऐडिट नहीं कर सकते",
+  manageGuardsCannotEditMsg:
+    "{name} की शिफ्ट सक्रिय होने पर उसे ऐडिट नहीं कर सकते।",
+  manageGuardsMissingInfoTitle: "जानकारी अधूरी है",
+  manageGuardsMissingInfoMsg: "नाम और फोन नंबर आवश्यक हैं।",
+  manageGuardsActiveBadge: "सक्रिय शिफ्ट",
+  manageGuardsNoneFound: "कोई गार्ड नहीं मिला।",
+  manageGuardsEditTitle: "गार्ड ऐडिट करें",
+};
+
+const localized = {
+  ...strings,
+  hi,
+} as const;
+
 export function t(
   lang: SupportedLanguage,
   key: keyof (typeof strings)["en"],
 ): string {
-  return strings[lang][key];
+  return localized[lang][key];
 }

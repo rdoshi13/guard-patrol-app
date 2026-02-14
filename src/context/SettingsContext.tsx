@@ -24,7 +24,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({
     const load = async () => {
       try {
         const stored = await AsyncStorage.getItem(LANGUAGE_KEY);
-        if (stored === "en" || stored === "gu") {
+        if (stored === "en" || stored === "gu" || stored === "hi") {
           setLanguageState(stored);
         }
       } catch {

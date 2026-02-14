@@ -162,8 +162,7 @@ function handlePatrol_(body) {
   if (header[0] !== "recordId") {
     return json_({
       ok: false,
-      error:
-        'Patrol sheet header mismatch: Column A must be "recordId".',
+      error: 'Patrol sheet header mismatch: Column A must be "recordId".',
     });
   }
 
@@ -190,7 +189,7 @@ function handlePatrol_(body) {
 
     values.push([
       rid,
-      r.dateKey || "",
+      toDateText_(r.dateKey),
       r.hourWindow || "",
       r.society || "",
       r.guardId || "",
@@ -250,8 +249,7 @@ function handleVisitors_(body) {
   if (header[0] !== "recordId") {
     return json_({
       ok: false,
-      error:
-        'Visitors sheet header mismatch: Column A must be "recordId".',
+      error: 'Visitors sheet header mismatch: Column A must be "recordId".',
     });
   }
 
@@ -362,6 +360,18 @@ function toDateTimeText_(v) {
     Session.getScriptTimeZone(),
     "dd/MM/yyyy HH:mm:ss",
   );
+}
+
+function toDateText_(v) {
+  if (!v) return "";
+  const s = String(v).trim();
+
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/); // YYYY-MM-DD
+  if (m) return `${m[3]}/${m[2]}/${m[1]}`; // DD/MM/YYYY
+
+  const d = v instanceof Date ? v : new Date(s);
+  if (isNaN(d.getTime())) return "";
+  return Utilities.formatDate(d, Session.getScriptTimeZone(), "dd/MM/yyyy");
 }
 
 function getHeader_(e, name) {

@@ -81,7 +81,7 @@ export const SettingsScreen: React.FC = () => {
         </Text>
 
         <View style={styles.langRow}>
-          <View style={{ flex: 1, marginRight: 8 }}>
+          <View style={styles.langButtonCell}>
             <AppButton
               title={t(language, "english")}
               onPress={() => setLanguage("en")}
@@ -89,11 +89,19 @@ export const SettingsScreen: React.FC = () => {
             />
           </View>
 
-          <View style={{ flex: 1, marginLeft: 8 }}>
+          <View style={styles.langButtonCell}>
             <AppButton
               title={t(language, "gujarati")}
               onPress={() => setLanguage("gu")}
               variant={language === "gu" ? "primary" : "secondary"}
+            />
+          </View>
+
+          <View style={styles.langButtonCell}>
+            <AppButton
+              title={t(language, "hindi")}
+              onPress={() => setLanguage("hi")}
+              variant={language === "hi" ? "primary" : "secondary"}
             />
           </View>
         </View>
@@ -146,7 +154,12 @@ const styles = StyleSheet.create({
 
   sectionTitle: { fontSize: 16, fontWeight: "800", marginBottom: 10 },
 
-  langRow: { flexDirection: "row" },
+  langRow: { flexDirection: "row", flexWrap: "wrap", marginHorizontal: -4 },
+  langButtonCell: {
+    width: "33.33%",
+    paddingHorizontal: 4,
+    marginBottom: 8,
+  },
   syncSpinnerWrap: {
     height: 40,
     borderWidth: 1,

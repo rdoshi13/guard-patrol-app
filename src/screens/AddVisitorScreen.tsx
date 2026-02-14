@@ -311,6 +311,16 @@ export const AddVisitorScreen: React.FC = () => {
   };
 
   const vehicleLabel = (vehicleType: VehicleType) => {
+    if (language === "hi") {
+      const hiMap: Record<VehicleType, string> = {
+        None: "कोई नहीं",
+        Car: "कार",
+        Bike: "बाइक",
+        Cycle: "साइकिल",
+      };
+      return hiMap[vehicleType];
+    }
+
     const map: Partial<Record<VehicleType, string>> = {
       None: language === "gu" ? "કંઈ નહિ" : "None",
       Car: language === "gu" ? "કાર" : "Car",
