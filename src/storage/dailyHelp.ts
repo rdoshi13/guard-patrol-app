@@ -43,6 +43,17 @@ export type DailyHelpTemplate = {
   displayOrder: number;
 };
 
+type DailyHelpComparable = {
+  name: string;
+  phone: string;
+  type: VisitType;
+  vehicle: VehicleType;
+  wing: VisitorWing;
+  flatNumber: string;
+  photoUrl?: string;
+  displayOrder: number;
+};
+
 function digitsOnly(v: string): string {
   return v.replace(/\D/g, "");
 }
@@ -210,6 +221,46 @@ function normalizeAndRankTemplates(rows: unknown[]): {
   };
 }
 
+function toComparableTemplate(t: DailyHelpTemplate): DailyHelpComparable {
+  return {
+    name: t.name,
+    phone: t.phone,
+    type: t.type,
+    vehicle: t.vehicle,
+    wing: t.wing,
+    flatNumber: t.flatNumber,
+    photoUrl: t.photoUrl,
+    displayOrder: t.displayOrder,
+  };
+}
+
+function templatesEqual(
+  left: DailyHelpTemplate[],
+  right: DailyHelpTemplate[],
+): boolean {
+  if (left.length !== right.length) return false;
+
+  for (let i = 0; i < left.length; i += 1) {
+    const a = toComparableTemplate(left[i]);
+    const b = toComparableTemplate(right[i]);
+
+    if (
+      a.name !== b.name ||
+      a.phone !== b.phone ||
+      a.type !== b.type ||
+      a.vehicle !== b.vehicle ||
+      a.wing !== b.wing ||
+      a.flatNumber !== b.flatNumber ||
+      a.photoUrl !== b.photoUrl ||
+      a.displayOrder !== b.displayOrder
+    ) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 function normalizeStoredTemplate(raw: unknown): DailyHelpTemplate | null {
   if (!raw || typeof raw !== "object") return null;
   const obj = raw as Record<string, unknown>;
@@ -282,12 +333,18 @@ export async function saveDailyHelpTemplates(
 
 export async function replaceDailyHelpTemplatesFromSheet(
   rows: unknown[],
-): Promise<{ saved: number; skipped: number }> {
+): Promise<{ saved: number; skipped: number; unchanged: boolean }> {
   const { templates, skipped } = normalizeAndRankTemplates(rows);
-  await saveDailyHelpTemplates(templates);
+  const existing = await loadDailyHelpTemplates();
+  const unchanged = templatesEqual(existing, templates);
+
+  if (!unchanged) {
+    await saveDailyHelpTemplates(templates);
+  }
 
   return {
-    saved: templates.length,
+    saved: unchanged ? 0 : templates.length,
     skipped,
+    unchanged,
   };
 }

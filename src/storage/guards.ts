@@ -17,6 +17,19 @@ const DEFAULT_GUARDS: Guard[] = [
   { id: "g_mahesh", name: "Mahesh", phone: "9000000003" },
 ];
 
+function normalizePhotoUri(v: unknown): string | undefined {
+  if (typeof v !== "string") return undefined;
+  const s = v.trim();
+  if (!s) return undefined;
+
+  const lowered = s.toLowerCase();
+  if (lowered === "null" || lowered === "undefined" || lowered === "nan") {
+    return undefined;
+  }
+
+  return s;
+}
+
 // helper to ensure a raw object matches our Guard shape
 function normalizeGuard(raw: any): Guard | null {
   if (!raw || typeof raw !== "object") return null;
@@ -29,8 +42,7 @@ function normalizeGuard(raw: any): Guard | null {
   const phoneRaw = raw.phone ?? "";
   const phone = String(phoneRaw || "").trim() || "0000000000";
 
-  const photoUri =
-    raw.photoUri && typeof raw.photoUri === "string" ? raw.photoUri : undefined;
+  const photoUri = normalizePhotoUri(raw.photoUri);
 
   return { id, name, phone, photoUri };
 }
@@ -71,7 +83,10 @@ export async function loadGuards(): Promise<Guard[]> {
 
 export async function saveGuards(guards: Guard[]): Promise<void> {
   try {
-    await AsyncStorage.setItem(GUARDS_KEY, JSON.stringify(guards));
+    const normalized = guards
+      .map((g) => normalizeGuard(g))
+      .filter((g): g is Guard => !!g);
+    await AsyncStorage.setItem(GUARDS_KEY, JSON.stringify(normalized));
   } catch {
     // ignore for now
   }
@@ -83,5 +98,5 @@ export function createGuard(
   photoUri?: string
 ): Guard {
   const id = `g_${Date.now()}_${Math.floor(Math.random() * 100000)}`;
-  return { id, name, phone, photoUri };
+  return { id, name, phone, photoUri: normalizePhotoUri(photoUri) };
 }

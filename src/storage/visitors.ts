@@ -87,6 +87,19 @@ function digitsOnly(phone: string): string {
   return phone.replace(/\D/g, "");
 }
 
+function normalizePhotoUri(v: unknown): string | undefined {
+  if (typeof v !== "string") return undefined;
+  const s = v.trim();
+  if (!s) return undefined;
+
+  const lowered = s.toLowerCase();
+  if (lowered === "null" || lowered === "undefined" || lowered === "nan") {
+    return undefined;
+  }
+
+  return s;
+}
+
 function createRecordId(prefix: string): string {
   // Stable enough for one-device usage; includes time + randomness
   return `${prefix}_${Date.now()}_${Math.random().toString(16).slice(2)}`;
@@ -185,6 +198,8 @@ function normalizeProfile(raw: any): {
   const name = String(raw.name ?? "").trim();
   if (!id || !name) return { value: null, changed: true };
 
+  const sourcePhotoUri = typeof raw.photoUri === "string" ? raw.photoUri : undefined;
+  const photoUri = normalizePhotoUri(raw.photoUri);
   const wingRaw = normalizeWing(raw.wing);
   const flatNumberRaw = normalizeFlatNumber(raw.flatNumber);
   const legacyFlat = typeof raw.flat === "string" ? raw.flat.trim() : "";
@@ -200,7 +215,7 @@ function normalizeProfile(raw: any): {
     phone: digitsOnly(String(raw.phone ?? "")),
     type: normalizeVisitType(raw.type),
     vehicle: normalizeVehicleType(raw.vehicle),
-    photoUri: typeof raw.photoUri === "string" ? raw.photoUri : undefined,
+    photoUri,
     wing: resolved.wing,
     flatNumber: resolved.flatNumber,
     flat: legacyFlat || undefined,
@@ -214,6 +229,7 @@ function normalizeProfile(raw: any): {
     (!wingRaw && !!wing) ||
     (!flatNumberRaw && !!resolved.flatNumber) ||
     resolved.forced ||
+    photoUri !== sourcePhotoUri ||
     value.phone !== String(raw.phone ?? "");
 
   return { value, changed };
@@ -332,6 +348,7 @@ export async function upsertVisitorProfile(input: {
   const phoneKey = digitsOnly(input.phone);
   const id = createVisitorId(phoneKey);
   const nowIso = input.seenAtIso ?? new Date().toISOString();
+  const incomingPhotoUri = normalizePhotoUri(input.photoUri);
   const parsedLegacy = parseLegacyFlat(input.flat);
   const wing = normalizeWing(input.wing) ?? parsedLegacy.wing;
   const flatNumber =
@@ -347,7 +364,7 @@ export async function upsertVisitorProfile(input: {
       ...existing,
       name: input.name.trim() || existing.name,
       vehicle: input.vehicle,
-      photoUri: input.photoUri ?? existing.photoUri,
+      photoUri: incomingPhotoUri ?? existing.photoUri,
       wing: resolved.wing ?? existing.wing,
       flatNumber: resolved.flatNumber ?? existing.flatNumber,
       visitCount: existing.visitCount + 1,
@@ -360,7 +377,7 @@ export async function upsertVisitorProfile(input: {
       phone: phoneKey,
       type: input.type,
       vehicle: input.vehicle,
-      photoUri: input.photoUri,
+      photoUri: incomingPhotoUri,
       wing: resolved.wing,
       flatNumber: resolved.flatNumber,
       visitCount: 1,

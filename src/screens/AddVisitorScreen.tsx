@@ -61,6 +61,19 @@ const DEFAULT_FLAT = "101";
 
 type AddVisitorRoute = RouteProp<RootStackParamList, "AddVisitor">;
 
+function normalizeImageUri(v?: string): string | undefined {
+  if (typeof v !== "string") return undefined;
+  const s = v.trim();
+  if (!s) return undefined;
+
+  const lowered = s.toLowerCase();
+  if (lowered === "null" || lowered === "undefined" || lowered === "nan") {
+    return undefined;
+  }
+
+  return s;
+}
+
 export const AddVisitorScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<AddVisitorRoute>();
@@ -80,6 +93,10 @@ export const AddVisitorScreen: React.FC = () => {
   const [photoUri, setPhotoUri] = useState<string | undefined>(undefined);
 
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [brokenSuggestionImages, setBrokenSuggestionImages] = useState<
+    Record<string, boolean>
+  >({});
+  const [isSelectedPhotoBroken, setIsSelectedPhotoBroken] = useState(false);
 
   useEffect(() => {
     const init = async () => {
@@ -129,7 +146,7 @@ export const AddVisitorScreen: React.FC = () => {
     }
 
     if (typeof prefill.photoUri === "string") {
-      setPhotoUri(prefill.photoUri);
+      setPhotoUri(normalizeImageUri(prefill.photoUri));
     }
 
     setShowSuggestions(false);
@@ -162,7 +179,7 @@ export const AddVisitorScreen: React.FC = () => {
     });
 
     if (!result.canceled && result.assets.length > 0) {
-      setPhotoUri(result.assets[0].uri);
+      setPhotoUri(normalizeImageUri(result.assets[0].uri));
     }
   };
 
@@ -181,7 +198,7 @@ export const AddVisitorScreen: React.FC = () => {
     });
 
     if (!result.canceled && result.assets.length > 0) {
-      setPhotoUri(result.assets[0].uri);
+      setPhotoUri(normalizeImageUri(result.assets[0].uri));
     }
   };
 
@@ -189,7 +206,7 @@ export const AddVisitorScreen: React.FC = () => {
     setName(p.name);
     setPhone(p.phone);
     setVehicle(p.vehicle);
-    setPhotoUri(p.photoUri);
+    setPhotoUri(normalizeImageUri(p.photoUri));
     setType(p.type);
     const parsedLegacy = parseLegacyFlat(p.flat);
     const w = p.wing ?? parsedLegacy.wing;
@@ -310,30 +327,46 @@ export const AddVisitorScreen: React.FC = () => {
     return wingValue;
   };
 
-  const renderSuggestion = (item: VisitorProfile, isLast: boolean) => (
-    <TouchableOpacity
-      key={item.id}
-      style={[styles.suggestionRow, isLast && styles.suggestionRowLast]}
-      onPress={() => selectSuggestion(item)}
-    >
-      {item.photoUri ? (
-        <Image
-          source={{ uri: item.photoUri }}
-          style={styles.suggestionAvatar}
-        />
-      ) : (
-        <View style={styles.suggestionAvatarPlaceholder}>
-          <Text style={styles.suggestionInitial}>
-            {item.name.charAt(0).toUpperCase()}
-          </Text>
+  const renderSuggestion = (item: VisitorProfile, isLast: boolean) => {
+    const suggestionPhotoUri = normalizeImageUri(item.photoUri);
+    return (
+      <TouchableOpacity
+        key={item.id}
+        style={[styles.suggestionRow, isLast && styles.suggestionRowLast]}
+        onPress={() => selectSuggestion(item)}
+      >
+        <View style={styles.suggestionAvatarWrap}>
+          <View style={styles.suggestionAvatarPlaceholder}>
+            <Text style={styles.suggestionInitial}>
+              {item.name.charAt(0).toUpperCase()}
+            </Text>
+          </View>
+          {suggestionPhotoUri && !brokenSuggestionImages[item.id] ? (
+            <Image
+              source={{ uri: suggestionPhotoUri }}
+              style={styles.suggestionAvatar}
+              onError={() =>
+                setBrokenSuggestionImages((prev) => ({
+                  ...prev,
+                  [item.id]: true,
+                }))
+              }
+            />
+          ) : null}
         </View>
-      )}
-      <View style={{ flex: 1 }}>
-        <Text style={styles.suggestionName}>{item.name}</Text>
-        <Text style={styles.suggestionMeta}>{visitTypeLabel(item.type)}</Text>
-      </View>
-    </TouchableOpacity>
-  );
+        <View style={{ flex: 1 }}>
+          <Text style={styles.suggestionName}>{item.name}</Text>
+          <Text style={styles.suggestionMeta}>{visitTypeLabel(item.type)}</Text>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+  const selectedPhotoUri = normalizeImageUri(photoUri);
+  const selectedPhotoInitial = String(name ?? "").trim().charAt(0).toUpperCase() || "?";
+
+  useEffect(() => {
+    setIsSelectedPhotoBroken(false);
+  }, [selectedPhotoUri]);
 
   return (
     <ScrollView
@@ -469,9 +502,20 @@ export const AddVisitorScreen: React.FC = () => {
 
       {/* Photo */}
       <Text style={styles.label}>{t(language, "addVisitorPhotoLabel")}</Text>
-      {photoUri ? (
+      {selectedPhotoUri ? (
         <View style={{ alignItems: "center", marginBottom: 8 }}>
-          <Image source={{ uri: photoUri }} style={styles.photoPreview} />
+          <View style={styles.photoPreviewWrap}>
+            <View style={styles.photoPreviewPlaceholder}>
+              <Text style={styles.photoPreviewInitial}>{selectedPhotoInitial}</Text>
+            </View>
+            {!isSelectedPhotoBroken ? (
+              <Image
+                source={{ uri: selectedPhotoUri }}
+                style={styles.photoPreview}
+                onError={() => setIsSelectedPhotoBroken(true)}
+              />
+            ) : null}
+          </View>
         </View>
       ) : (
         <Text style={styles.helperText}>{t(language, "addVisitorOptional")}</Text>
@@ -569,17 +613,23 @@ const styles = StyleSheet.create({
   suggestionRowLast: {
     borderBottomWidth: 0,
   },
+  suggestionAvatarWrap: {
+    width: 36,
+    height: 36,
+    marginRight: 10,
+  },
   suggestionAvatar: {
+    position: "absolute",
+    left: 0,
+    top: 0,
     width: 36,
     height: 36,
     borderRadius: 18,
-    marginRight: 10,
   },
   suggestionAvatarPlaceholder: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    marginRight: 10,
     backgroundColor: "#ddd",
     alignItems: "center",
     justifyContent: "center",
@@ -603,9 +653,28 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   photoPreview: {
+    position: "absolute",
+    left: 0,
+    top: 0,
     width: 90,
     height: 90,
     borderRadius: 45,
+  },
+  photoPreviewWrap: {
+    width: 90,
+    height: 90,
+  },
+  photoPreviewPlaceholder: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: "#ddd",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  photoPreviewInitial: {
+    fontSize: 30,
+    fontWeight: "700",
   },
   photoButtonsRow: {
     flexDirection: "row",

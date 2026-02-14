@@ -359,6 +359,17 @@ export async function syncDailyHelpTemplates(
         ? payload.skipped
         : 0;
 
+    if (write.unchanged) {
+      return {
+        ok: true,
+        attempted: 0,
+        synced: 0,
+        skipped: 0,
+        message:
+          typeof payload?.message === "string" ? payload.message : undefined,
+      };
+    }
+
     return {
       ok: true,
       attempted: rows.length,

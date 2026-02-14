@@ -38,7 +38,7 @@ const strings = {
     settingsSyncDailyHelpNow: "Sync Daily Help Now",
     settingsDailyHelpSyncComplete: "Daily Help sync complete",
     settingsDailyHelpSyncFailed: "Daily Help sync failed",
-    settingsDailyHelpSyncNoData: "No Daily Help templates available in sheet.",
+    settingsDailyHelpSyncNoData: "No Daily Help updates to sync.",
     settingsAdminHelper:
       "Manage Guards requires PIN. Daily Help sync does not. You can't edit/delete a guard who is currently on duty.",
 
@@ -132,7 +132,7 @@ const strings = {
     visitorsSyncVisitorRecordsLabel: "Visitor records",
     visitorsSyncDailyHelpLabel: "Daily Help templates",
     visitorsSyncNoPending: "No pending visitor records to sync.",
-    visitorsDailyHelpSyncNoData: "No Daily Help templates to sync.",
+    visitorsDailyHelpSyncNoData: "No Daily Help updates to sync.",
     visitorsDailyHelpEmpty:
       "No Daily Help templates yet. Ask admin to add entries in Google Sheet.",
     visitorsAttempted: "Attempted",
@@ -234,7 +234,7 @@ const strings = {
     settingsSyncDailyHelpNow: "ડેઇલી હેલ્પ હમણાં સિંક કરો",
     settingsDailyHelpSyncComplete: "ડેઇલી હેલ્પ સિંક પૂર્ણ",
     settingsDailyHelpSyncFailed: "ડેઇલી હેલ્પ સિંક નિષ્ફળ",
-    settingsDailyHelpSyncNoData: "શીટમાં ડેઇલી હેલ્પ ટેમ્પલેટ્સ ઉપલબ્ધ નથી.",
+    settingsDailyHelpSyncNoData: "સિંક કરવા માટે ડેઇલી હેલ્પમાં કોઈ નવા અપડેટ્સ નથી.",
     settingsAdminHelper:
       "ગાર્ડ મેનેજ કરવા PIN જરૂરી છે. ડેઇલી હેલ્પ સિંક માટે PIN જરૂરી નથી. હાલ ડ્યૂટી પર રહેલા ગાર્ડને edit/delete કરી શકાતાં નથી.",
 
@@ -326,7 +326,7 @@ const strings = {
     visitorsSyncVisitorRecordsLabel: "મહેમાન રેકોર્ડ્સ",
     visitorsSyncDailyHelpLabel: "ડેઇલી હેલ્પ ટેમ્પલેટ્સ",
     visitorsSyncNoPending: "સિંક કરવા માટે કોઈ બાકી મહેમાન રેકોર્ડ નથી.",
-    visitorsDailyHelpSyncNoData: "સિંક કરવા માટે ડેઇલી હેલ્પ ટેમ્પલેટ્સ નથી.",
+    visitorsDailyHelpSyncNoData: "સિંક કરવા માટે ડેઇલી હેલ્પમાં કોઈ નવા અપડેટ્સ નથી.",
     visitorsDailyHelpEmpty:
       "હજુ ડેઇલી હેલ્પ ટેમ્પલેટ્સ નથી. એડમિનને Google Sheet માં એન્ટ્રી ઉમેરવા કહો.",
     visitorsAttempted: "પ્રયાસ",

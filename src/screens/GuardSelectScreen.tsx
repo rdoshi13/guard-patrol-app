@@ -19,6 +19,24 @@ import { t } from "../i18n/strings";
 import { Guard, loadGuards, saveGuards, createGuard } from "../storage/guards";
 import * as ImagePicker from "expo-image-picker";
 
+function normalizeImageUri(v?: string): string | undefined {
+  if (typeof v !== "string") return undefined;
+  const s = v.trim();
+  if (!s) return undefined;
+
+  const lowered = s.toLowerCase();
+  if (lowered === "null" || lowered === "undefined" || lowered === "nan") {
+    return undefined;
+  }
+
+  return s;
+}
+
+function getInitial(name: string): string {
+  const s = String(name ?? "").trim();
+  return s ? s.charAt(0).toUpperCase() : "?";
+}
+
 export const GuardSelectScreen: React.FC = () => {
   const { session, startSession } = useSession();
   const { language } = useSettings();
@@ -34,11 +52,16 @@ export const GuardSelectScreen: React.FC = () => {
     undefined
   );
   const [isPickingPhoto, setIsPickingPhoto] = useState(false);
+  const [brokenGuardImages, setBrokenGuardImages] = useState<
+    Record<string, boolean>
+  >({});
+  const [isNewGuardPreviewBroken, setIsNewGuardPreviewBroken] = useState(false);
 
   // load guards once
   useEffect(() => {
     const init = async () => {
       const data = await loadGuards();
+      setBrokenGuardImages({});
       setGuards(data);
     };
     init();
@@ -57,7 +80,7 @@ export const GuardSelectScreen: React.FC = () => {
       return;
     }
 
-    const newGuard = createGuard(name, phone, newGuardPhotoUri);
+    const newGuard = createGuard(name, phone, normalizeImageUri(newGuardPhotoUri));
     const updated = [...guards, newGuard];
 
     setGuards(updated);
@@ -67,6 +90,7 @@ export const GuardSelectScreen: React.FC = () => {
     setNewGuardName("");
     setNewGuardPhone("");
     setNewGuardPhotoUri(undefined);
+    setIsNewGuardPreviewBroken(false);
     setModalVisible(false);
   };
 
@@ -84,30 +108,43 @@ export const GuardSelectScreen: React.FC = () => {
     goHome();
   };
 
-  const renderGuardItem = ({ item }: { item: Guard }) => (
-    <TouchableOpacity
-      style={[
-        styles.guardItem,
-        selectedGuard?.id === item.id && styles.guardItemSelected,
-      ]}
-      onPress={() => setSelectedGuard(item)}
-    >
-      {item.photoUri ? (
-        <Image source={{ uri: item.photoUri }} style={styles.guardAvatar} />
-      ) : (
-        <View style={styles.guardAvatarPlaceholder}>
-          <Text style={styles.guardAvatarInitial}>
-            {item.name.charAt(0).toUpperCase()}
-          </Text>
+  const renderGuardItem = ({ item }: { item: Guard }) => {
+    const guardPhotoUri = normalizeImageUri(item.photoUri);
+    return (
+      <TouchableOpacity
+        style={[
+          styles.guardItem,
+          selectedGuard?.id === item.id && styles.guardItemSelected,
+        ]}
+        onPress={() => setSelectedGuard(item)}
+      >
+        <View style={styles.guardAvatarWrap}>
+          <View style={styles.guardAvatarPlaceholder}>
+            <Text style={styles.guardAvatarInitial}>
+              {getInitial(item.name)}
+            </Text>
+          </View>
+          {guardPhotoUri && !brokenGuardImages[item.id] ? (
+            <Image
+              source={{ uri: guardPhotoUri }}
+              style={styles.guardAvatar}
+              onError={() =>
+                setBrokenGuardImages((prev) => ({
+                  ...prev,
+                  [item.id]: true,
+                }))
+              }
+            />
+          ) : null}
         </View>
-      )}
 
-      <View style={{ flex: 1 }}>
-        <Text style={styles.guardName}>{item.name}</Text>
-        <Text style={styles.guardPhone}>{item.phone}</Text>
-      </View>
-    </TouchableOpacity>
-  );
+        <View style={{ flex: 1 }}>
+          <Text style={styles.guardName}>{item.name}</Text>
+          <Text style={styles.guardPhone}>{item.phone}</Text>
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   // image pickers
   const pickFromGallery = async () => {
@@ -133,7 +170,8 @@ export const GuardSelectScreen: React.FC = () => {
       });
 
       if (!result.canceled && result.assets.length > 0) {
-        setNewGuardPhotoUri(result.assets[0].uri);
+        setNewGuardPhotoUri(normalizeImageUri(result.assets[0].uri));
+        setIsNewGuardPreviewBroken(false);
       }
     } catch (e: any) {
       Alert.alert(
@@ -165,7 +203,8 @@ export const GuardSelectScreen: React.FC = () => {
       });
 
       if (!result.canceled && result.assets.length > 0) {
-        setNewGuardPhotoUri(result.assets[0].uri);
+        setNewGuardPhotoUri(normalizeImageUri(result.assets[0].uri));
+        setIsNewGuardPreviewBroken(false);
       }
     } catch (e: any) {
       Alert.alert(
@@ -176,6 +215,9 @@ export const GuardSelectScreen: React.FC = () => {
       setIsPickingPhoto(false);
     }
   };
+
+  const newGuardPreviewUri = normalizeImageUri(newGuardPhotoUri);
+  const newGuardInitial = getInitial(newGuardName);
 
   return (
     <View style={styles.container}>
@@ -192,7 +234,10 @@ export const GuardSelectScreen: React.FC = () => {
       <View style={{ marginVertical: 8 }}>
         <AppButton
           title={t(language, "addNewGuard")}
-          onPress={() => setModalVisible(true)}
+          onPress={() => {
+            setIsNewGuardPreviewBroken(false);
+            setModalVisible(true);
+          }}
           variant="secondary"
         />
       </View>
@@ -239,7 +284,10 @@ export const GuardSelectScreen: React.FC = () => {
         visible={modalVisible}
         transparent
         animationType="slide"
-        onRequestClose={() => setModalVisible(false)}
+        onRequestClose={() => {
+          setIsNewGuardPreviewBroken(false);
+          setModalVisible(false);
+        }}
       >
         <View style={styles.modalBackdrop}>
           <View style={styles.modalContent}>
@@ -269,12 +317,20 @@ export const GuardSelectScreen: React.FC = () => {
             <Text style={[styles.label, { marginTop: 8 }]}>
               {t(language, "guardPhotoOptional")}
             </Text>
-            {newGuardPhotoUri && (
+            {newGuardPreviewUri && (
               <View style={{ alignItems: "center", marginBottom: 8 }}>
-                <Image
-                  source={{ uri: newGuardPhotoUri }}
-                  style={{ width: 80, height: 80, borderRadius: 40 }}
-                />
+                <View style={styles.newGuardPreviewWrap}>
+                  <View style={styles.newGuardPreviewPlaceholder}>
+                    <Text style={styles.newGuardPreviewInitial}>{newGuardInitial}</Text>
+                  </View>
+                  {!isNewGuardPreviewBroken ? (
+                    <Image
+                      source={{ uri: newGuardPreviewUri }}
+                      style={styles.newGuardPreview}
+                      onError={() => setIsNewGuardPreviewBroken(true)}
+                    />
+                  ) : null}
+                </View>
               </View>
             )}
             <View style={styles.photoButtonsRow}>
@@ -299,7 +355,10 @@ export const GuardSelectScreen: React.FC = () => {
               <View style={{ flex: 1, marginRight: 8 }}>
                 <AppButton
                   title={t(language, "cancel")}
-                  onPress={() => setModalVisible(false)}
+                  onPress={() => {
+                    setIsNewGuardPreviewBroken(false);
+                    setModalVisible(false);
+                  }}
                   variant="secondary"
                 />
               </View>
@@ -343,17 +402,23 @@ const styles = StyleSheet.create({
   guardItemSelected: {
     backgroundColor: "#e0f7fa",
   },
+  guardAvatarWrap: {
+    width: 40,
+    height: 40,
+    marginRight: 12,
+  },
   guardAvatar: {
+    position: "absolute",
+    left: 0,
+    top: 0,
     width: 40,
     height: 40,
     borderRadius: 20,
-    marginRight: 12,
   },
   guardAvatarPlaceholder: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    marginRight: 12,
     backgroundColor: "#ddd",
     alignItems: "center",
     justifyContent: "center",
@@ -361,6 +426,30 @@ const styles = StyleSheet.create({
   guardAvatarInitial: {
     fontSize: 18,
     fontWeight: "600",
+  },
+  newGuardPreviewWrap: {
+    width: 80,
+    height: 80,
+  },
+  newGuardPreviewPlaceholder: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "#ddd",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  newGuardPreviewInitial: {
+    fontSize: 28,
+    fontWeight: "700",
+  },
+  newGuardPreview: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
   },
   guardName: {
     fontSize: 16,

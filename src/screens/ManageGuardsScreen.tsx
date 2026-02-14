@@ -23,6 +23,24 @@ import { t } from "../i18n/strings";
 
 type Props = NativeStackScreenProps<RootStackParamList, "ManageGuards">;
 
+function normalizeImageUri(v?: string): string | undefined {
+  if (typeof v !== "string") return undefined;
+  const s = v.trim();
+  if (!s) return undefined;
+
+  const lowered = s.toLowerCase();
+  if (lowered === "null" || lowered === "undefined" || lowered === "nan") {
+    return undefined;
+  }
+
+  return s;
+}
+
+function getInitial(name: string): string {
+  const s = String(name ?? "").trim();
+  return s ? s.charAt(0).toUpperCase() : "?";
+}
+
 type EditDraft = {
   id: string;
   name: string;
@@ -37,6 +55,10 @@ export const ManageGuardsScreen: React.FC<Props> = () => {
   const [guards, setGuards] = useState<Guard[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [draft, setDraft] = useState<EditDraft | null>(null);
+  const [brokenGuardImages, setBrokenGuardImages] = useState<
+    Record<string, boolean>
+  >({});
+  const [isDraftPreviewBroken, setIsDraftPreviewBroken] = useState(false);
 
   const activeGuardId = session?.guardId ?? null;
 
@@ -48,6 +70,7 @@ export const ManageGuardsScreen: React.FC<Props> = () => {
 
   const refresh = async () => {
     const g = await loadGuards();
+    setBrokenGuardImages({});
     setGuards(g);
   };
 
@@ -99,12 +122,14 @@ export const ManageGuardsScreen: React.FC<Props> = () => {
       id: item.id,
       name: item.name ?? "",
       phone: (item as any).phone ?? "",
-      photoUri: (item as any).photoUri,
+      photoUri: normalizeImageUri((item as any).photoUri),
     });
+    setIsDraftPreviewBroken(false);
     setModalVisible(true);
   };
 
   const closeEdit = () => {
+    setIsDraftPreviewBroken(false);
     setModalVisible(false);
     setDraft(null);
   };
@@ -114,12 +139,14 @@ export const ManageGuardsScreen: React.FC<Props> = () => {
     if (status !== "granted") return;
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: [ImagePicker.MediaType.Images],
+      // Deprecated warning, but most compatible across Expo Go/Android.
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
       quality: 0.5,
     });
 
     if (!result.canceled && result.assets.length > 0) {
-      const uri = result.assets[0].uri;
+      const uri = normalizeImageUri(result.assets[0].uri);
+      setIsDraftPreviewBroken(false);
       setDraft((d) => (d ? { ...d, photoUri: uri } : d));
     }
   };
@@ -133,7 +160,8 @@ export const ManageGuardsScreen: React.FC<Props> = () => {
     });
 
     if (!result.canceled && result.assets.length > 0) {
-      const uri = result.assets[0].uri;
+      const uri = normalizeImageUri(result.assets[0].uri);
+      setIsDraftPreviewBroken(false);
       setDraft((d) => (d ? { ...d, photoUri: uri } : d));
     }
   };
@@ -169,7 +197,7 @@ export const ManageGuardsScreen: React.FC<Props> = () => {
         ...g,
         name,
         phone,
-        photoUri: draft.photoUri,
+        photoUri: normalizeImageUri(draft.photoUri),
       } as Guard;
     });
 
@@ -177,6 +205,10 @@ export const ManageGuardsScreen: React.FC<Props> = () => {
     await saveGuards(updated);
     closeEdit();
   };
+
+  const draftPreviewUri = normalizeImageUri(draft?.photoUri);
+  const draftPreviewInitial =
+    String(draft?.name ?? "").trim().charAt(0).toUpperCase() || "?";
 
   return (
     <View style={styles.container}>
@@ -196,22 +228,30 @@ export const ManageGuardsScreen: React.FC<Props> = () => {
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => {
           const blocked = isActiveGuard(item.id);
+          const guardPhotoUri = normalizeImageUri((item as any).photoUri);
 
           return (
             <View style={styles.row}>
               <View style={styles.left}>
-                {(item as any).photoUri ? (
-                  <Image
-                    source={{ uri: (item as any).photoUri }}
-                    style={styles.guardAvatar}
-                  />
-                ) : (
+                <View style={styles.guardAvatarWrap}>
                   <View style={styles.guardAvatarPlaceholder}>
                     <Text style={styles.guardAvatarInitial}>
-                      {item.name.charAt(0).toUpperCase()}
+                      {getInitial(item.name)}
                     </Text>
                   </View>
-                )}
+                  {guardPhotoUri && !brokenGuardImages[item.id] ? (
+                    <Image
+                      source={{ uri: guardPhotoUri }}
+                      style={styles.guardAvatar}
+                      onError={() =>
+                        setBrokenGuardImages((prev) => ({
+                          ...prev,
+                          [item.id]: true,
+                        }))
+                      }
+                    />
+                  ) : null}
+                </View>
 
                 <View style={{ flex: 1 }}>
                   <Text style={styles.name}>{item.name}</Text>
@@ -296,12 +336,20 @@ export const ManageGuardsScreen: React.FC<Props> = () => {
               {t(language, "photoOptional")}
             </Text>
 
-            {draft?.photoUri ? (
+            {draftPreviewUri ? (
               <View style={{ alignItems: "center", marginTop: 10 }}>
-                <Image
-                  source={{ uri: draft.photoUri }}
-                  style={{ width: 80, height: 80, borderRadius: 40 }}
-                />
+                <View style={styles.draftPreviewWrap}>
+                  <View style={styles.draftPreviewPlaceholder}>
+                    <Text style={styles.draftPreviewInitial}>{draftPreviewInitial}</Text>
+                  </View>
+                  {!isDraftPreviewBroken ? (
+                    <Image
+                      source={{ uri: draftPreviewUri }}
+                      style={styles.draftPreview}
+                      onError={() => setIsDraftPreviewBroken(true)}
+                    />
+                  ) : null}
+                </View>
               </View>
             ) : null}
 
@@ -395,17 +443,23 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "700",
   },
+  guardAvatarWrap: {
+    width: 40,
+    height: 40,
+    marginRight: 12,
+  },
   guardAvatar: {
+    position: "absolute",
+    left: 0,
+    top: 0,
     width: 40,
     height: 40,
     borderRadius: 20,
-    marginRight: 12,
   },
   guardAvatarPlaceholder: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    marginRight: 12,
     backgroundColor: "#ddd",
     alignItems: "center",
     justifyContent: "center",
@@ -413,6 +467,30 @@ const styles = StyleSheet.create({
   guardAvatarInitial: {
     fontSize: 18,
     fontWeight: "600",
+  },
+  draftPreviewWrap: {
+    width: 80,
+    height: 80,
+  },
+  draftPreviewPlaceholder: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "#ddd",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  draftPreviewInitial: {
+    fontSize: 28,
+    fontWeight: "700",
+  },
+  draftPreview: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
   },
   modalBackdrop: {
     flex: 1,

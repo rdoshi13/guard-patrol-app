@@ -1,6 +1,5 @@
 // src/navigation/MainTabs.tsx
 import React from "react";
-import { AppButton } from "../components/AppButton";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { useRoute, RouteProp } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
@@ -10,7 +9,7 @@ import { PatrolScreen } from "../screens/PatrolScreen";
 import { VisitorsScreen } from "../screens/VisitorsScreen";
 import { SettingsScreen } from "../screens/SettingsScreen";
 import { useSession } from "../context/SessionContext";
-import { TouchableOpacity, Text } from "react-native";
+import { TouchableOpacity, Text, View, StyleSheet } from "react-native";
 
 export type MainTabParamList = {
   Shift: undefined;
@@ -31,6 +30,7 @@ export const MainTabs: React.FC = () => {
   const initialTab = route.params?.initialTab ?? "Shift";
 
   const { session } = useSession();
+  const isShiftLocked = !!session;
 
   return (
     <Tab.Navigator
@@ -38,6 +38,8 @@ export const MainTabs: React.FC = () => {
       screenOptions={({ route, navigation }) => ({
         headerShown: true,
         tabBarLabelPosition: "below-icon",
+        tabBarActiveTintColor: "#1976d2",
+        tabBarInactiveTintColor: "#8a8a8a",
 
         headerLeft: () => (
           <TouchableOpacity
@@ -69,14 +71,36 @@ export const MainTabs: React.FC = () => {
             iconName = focused ? "settings" : "settings-outline";
           }
 
-          return <Ionicons name={iconName} size={size} color={color} />;
+          const iconColor =
+            route.name === "Shift" && isShiftLocked ? "#d32f2f" : color;
+
+          return (
+            <View style={styles.tabIconWrap}>
+              <View
+                style={[
+                  styles.tabActiveLine,
+                  {
+                    opacity: focused ? 1 : 0,
+                    backgroundColor: color,
+                  },
+                ]}
+              />
+              <Ionicons name={iconName} size={size} color={iconColor} />
+            </View>
+          );
         },
       })}
     >
       <Tab.Screen
         name="Shift"
         component={GuardSelectScreen}
-        options={{ title: "Guard Shift" }}
+        options={{
+          title: "Guard Shift",
+          tabBarLabelStyle: isShiftLocked
+            ? { color: "#d32f2f", fontWeight: "600" }
+            : undefined,
+          tabBarItemStyle: isShiftLocked ? { opacity: 0.85 } : undefined,
+        }}
         listeners={{
           tabPress: (e) => {
             if (session) {
@@ -104,3 +128,16 @@ export const MainTabs: React.FC = () => {
     </Tab.Navigator>
   );
 };
+
+const styles = StyleSheet.create({
+  tabIconWrap: {
+    width: 48,
+    alignItems: "center",
+  },
+  tabActiveLine: {
+    width: 30,
+    height: 2,
+    borderRadius: 1,
+    marginBottom: 4,
+  },
+});

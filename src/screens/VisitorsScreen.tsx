@@ -14,11 +14,32 @@ import {
 import { AppButton } from "../components/AppButton";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { useSettings } from "../context/SettingsContext";
-import { VisitorProfile, getTopVisitorsByFrequency } from "../storage/visitors";
+import {
+  VisitorProfile,
+  getTopVisitorsByFrequency,
+  loadVisitorProfiles,
+} from "../storage/visitors";
 import { t } from "../i18n/strings";
 import { syncDailyHelpTemplates, syncVisitorEntries, SyncResult } from "../sync/sheets";
 import { SHEETS_SYNC_CONFIG } from "../constants/sheets";
 import { DailyHelpTemplate, loadDailyHelpTemplates } from "../storage/dailyHelp";
+
+type DailyHelpCard = DailyHelpTemplate & {
+  resolvedPhotoUri?: string;
+};
+
+function normalizeImageUri(v?: string): string | undefined {
+  if (typeof v !== "string") return undefined;
+  const s = v.trim();
+  if (!s) return undefined;
+
+  const lowered = s.toLowerCase();
+  if (lowered === "null" || lowered === "undefined" || lowered === "nan") {
+    return undefined;
+  }
+
+  return s;
+}
 
 function formatDateTime(iso?: string): string {
   if (!iso) return "-";
@@ -39,22 +60,49 @@ export const VisitorsScreen: React.FC = () => {
   const navigation = useNavigation<any>();
 
   const [topVisitors, setTopVisitors] = useState<VisitorProfile[]>([]);
-  const [dailyHelp, setDailyHelp] = useState<DailyHelpTemplate[]>([]);
+  const [dailyHelp, setDailyHelp] = useState<DailyHelpCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingDailyHelp, setLoadingDailyHelp] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [brokenDailyHelpImages, setBrokenDailyHelpImages] = useState<
+    Record<string, boolean>
+  >({});
+  const [brokenFrequentImages, setBrokenFrequentImages] = useState<
+    Record<string, boolean>
+  >({});
 
   const loadTop = async () => {
     setLoading(true);
     const top = await getTopVisitorsByFrequency(10);
+    setBrokenFrequentImages({});
     setTopVisitors(top);
     setLoading(false);
   };
 
   const loadDailyHelp = async () => {
     setLoadingDailyHelp(true);
-    const templates = await loadDailyHelpTemplates();
-    setDailyHelp(templates);
+    const [templates, profiles] = await Promise.all([
+      loadDailyHelpTemplates(),
+      loadVisitorProfiles(),
+    ]);
+
+    const profilePhotoByPhone = new Map<string, string>();
+    for (const p of profiles) {
+      const uri = normalizeImageUri(p.photoUri);
+      if (!p.phone || !uri) continue;
+      if (!profilePhotoByPhone.has(p.phone)) {
+        profilePhotoByPhone.set(p.phone, uri);
+      }
+    }
+
+    const next: DailyHelpCard[] = templates.map((item) => ({
+      ...item,
+      resolvedPhotoUri:
+        normalizeImageUri(item.photoUrl) ?? profilePhotoByPhone.get(item.phone),
+    }));
+
+    setBrokenDailyHelpImages({});
+    setDailyHelp(next);
     setLoadingDailyHelp(false);
   };
 
@@ -161,7 +209,7 @@ export const VisitorsScreen: React.FC = () => {
     return key ? t(language, key) : type;
   };
 
-  const openTemplate = (item: DailyHelpTemplate) => {
+  const openTemplate = (item: DailyHelpCard) => {
     navigation.navigate("AddVisitor", {
       prefill: {
         name: item.name,
@@ -170,9 +218,21 @@ export const VisitorsScreen: React.FC = () => {
         vehicle: item.vehicle,
         wing: item.wing,
         flatNumber: item.flatNumber,
-        photoUri: item.photoUrl,
+        photoUri: item.resolvedPhotoUri,
       },
     });
+  };
+
+  const getInitial = (name: string): string => {
+    const s = String(name ?? "").trim();
+    return s ? s.charAt(0).toUpperCase() : "?";
+  };
+
+  const visitsLabel = (count: number): string => {
+    if (language === "en") {
+      return count === 1 ? "visit" : "visits";
+    }
+    return t(language, "visitorsVisits");
   };
 
   return (
@@ -205,34 +265,48 @@ export const VisitorsScreen: React.FC = () => {
           nestedScrollEnabled
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.dailyCardsRow}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={styles.dailyCard}
-              activeOpacity={0.85}
-              onPress={() => openTemplate(item)}
-            >
-              <View style={styles.dailyAvatarWrap}>
-                {item.photoUrl ? (
-                  <Image source={{ uri: item.photoUrl }} style={styles.dailyAvatar} />
-                ) : (
-                  <View style={styles.dailyAvatarPlaceholder}>
-                    <Text style={styles.dailyAvatarInitial}>
-                      {item.name.charAt(0).toUpperCase()}
-                    </Text>
-                  </View>
-                )}
-              </View>
+          renderItem={({ item }) => {
+            const dailyPhotoUri = normalizeImageUri(item.resolvedPhotoUri);
+            return (
+              <TouchableOpacity
+                style={styles.dailyCard}
+                activeOpacity={0.85}
+                onPress={() => openTemplate(item)}
+              >
+                <View style={styles.dailyAvatarWrap}>
+                  <View style={styles.dailyAvatarStack}>
+                    <View style={styles.dailyAvatarPlaceholder}>
+                      <Text style={styles.dailyAvatarInitial}>
+                        {getInitial(item.name)}
+                      </Text>
+                    </View>
 
-              <View style={styles.dailyTextWrap}>
-                <Text numberOfLines={1} style={styles.dailyName}>
-                  {item.name}
-                </Text>
-                <Text numberOfLines={1} style={styles.dailyMeta}>
-                  {visitTypeLabel(item.type)}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          )}
+                    {dailyPhotoUri && !brokenDailyHelpImages[item.id] ? (
+                      <Image
+                        source={{ uri: dailyPhotoUri }}
+                        style={styles.dailyAvatar}
+                        onError={() =>
+                          setBrokenDailyHelpImages((prev) => ({
+                            ...prev,
+                            [item.id]: true,
+                          }))
+                        }
+                      />
+                    ) : null}
+                  </View>
+                </View>
+
+                <View style={styles.dailyTextWrap}>
+                  <Text numberOfLines={1} style={styles.dailyName}>
+                    {item.name}
+                  </Text>
+                  <Text numberOfLines={1} style={styles.dailyMeta}>
+                    {visitTypeLabel(item.type)}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            );
+          }}
         />
       )}
 
@@ -271,29 +345,42 @@ export const VisitorsScreen: React.FC = () => {
       ) : topVisitors.length === 0 ? (
         <Text style={styles.emptyText}>{t(language, "visitorsEmpty")}</Text>
       ) : (
-        topVisitors.map((item) => (
-          <View key={item.id} style={styles.row}>
-            {item.photoUri ? (
-              <Image source={{ uri: item.photoUri }} style={styles.avatar} />
-            ) : (
-              <View style={styles.avatarPlaceholder}>
-                <Text style={styles.avatarInitial}>
-                  {item.name.charAt(0).toUpperCase()}
+        topVisitors.map((item) => {
+          const frequentPhotoUri = normalizeImageUri(item.photoUri);
+          return (
+            <View key={item.id} style={styles.row}>
+              <View style={styles.avatarWrap}>
+                <View style={styles.avatarPlaceholder}>
+                  <Text style={styles.avatarInitial}>
+                    {getInitial(item.name)}
+                  </Text>
+                </View>
+                {frequentPhotoUri && !brokenFrequentImages[item.id] ? (
+                  <Image
+                    source={{ uri: frequentPhotoUri }}
+                    style={styles.avatar}
+                    onError={() =>
+                      setBrokenFrequentImages((prev) => ({
+                        ...prev,
+                        [item.id]: true,
+                      }))
+                    }
+                  />
+                ) : null}
+              </View>
+
+              <View style={{ flex: 1 }}>
+                <Text style={styles.name}>{item.name}</Text>
+                <Text style={styles.meta}>
+                  {visitTypeLabel(item.type)} • {item.visitCount}{" "}
+                  {visitsLabel(item.visitCount)} • {t(language, "visitorsLast")}:
+                  {" "}
+                  {formatDateTime(item.lastSeenAt)}
                 </Text>
               </View>
-            )}
-
-            <View style={{ flex: 1 }}>
-              <Text style={styles.name}>{item.name}</Text>
-              <Text style={styles.meta}>
-                {visitTypeLabel(item.type)} • {item.visitCount}{" "}
-                {t(language, "visitorsVisits")} • {t(language, "visitorsLast")}:
-                {" "}
-                {formatDateTime(item.lastSeenAt)}
-              </Text>
             </View>
-          </View>
-        ))
+          );
+        })
       )}
     </ScrollView>
   );
@@ -345,17 +432,23 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     backgroundColor: "#fff",
   },
+  avatarWrap: {
+    width: 44,
+    height: 44,
+    marginRight: 12,
+  },
   avatar: {
+    position: "absolute",
+    left: 0,
+    top: 0,
     width: 44,
     height: 44,
     borderRadius: 22,
-    marginRight: 12,
   },
   avatarPlaceholder: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    marginRight: 12,
     backgroundColor: "#ddd",
     alignItems: "center",
     justifyContent: "center",
@@ -412,7 +505,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingTop: 4,
   },
+  dailyAvatarStack: {
+    width: 52,
+    height: 52,
+  },
   dailyAvatar: {
+    position: "absolute",
+    left: 0,
+    top: 0,
     width: 52,
     height: 52,
     borderRadius: 26,
