@@ -29,6 +29,7 @@ import { t } from "../i18n/strings";
 import {
   PatrolPoint,
   applyScan,
+  cleanupInvalidPatrolHourRecords,
   cleanupSyncedOlderThan,
   finalizeHourRecord,
   loadPatrolHourRecords,
@@ -113,12 +114,69 @@ const INITIAL_CHECKPOINTS: Checkpoint[] = [
 
 const STORAGE_WINDOW_SCANS = "patrol_window_scans_v1";
 const STORAGE_EVENTS = "patrol_events_v1";
+const STORAGE_MISSED_FINALIZED_DATES = "patrol_missed_finalized_dates_v1";
+const MIN_PATROL_HOUR_START = 0;
+const MAX_PATROL_HOUR_START = 4;
+const MISSED_FINALIZE_GRACE_END_HOUR = 8;
 
 // Brick 2: hourly rollups (report-ready)
 // const STORAGE_HOUR_RECORDS = "patrol_hour_records_v1";
 
 // windowScans[windowKey][pointId] = ISO time
 type WindowScans = Record<string, Record<string, string>>;
+type MissedFinalizeMap = Record<string, string>;
+
+function isValidPatrolHourStart(hour: number): boolean {
+  return (
+    Number.isInteger(hour) &&
+    hour >= MIN_PATROL_HOUR_START &&
+    hour <= MAX_PATROL_HOUR_START
+  );
+}
+
+function parseIsoDate(iso: string): Date | null {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function patrolDateForNightShift(startedAtIso: string): string {
+  const startedAt = parseIsoDate(startedAtIso);
+  if (!startedAt) return localDateKey();
+
+  // NIGHT shifts that start in evening map to next day's 00:00-05:00 patrol window.
+  if (startedAt.getHours() >= 18) {
+    startedAt.setDate(startedAt.getDate() + 1);
+  }
+
+  return localDateKey(startedAt);
+}
+
+function missedFinalizeMapKey(guardId: string, patrolDate: string): string {
+  return `${guardId}|${patrolDate}`;
+}
+
+async function loadMissedFinalizeMap(): Promise<MissedFinalizeMap> {
+  try {
+    const raw = await AsyncStorage.getItem(STORAGE_MISSED_FINALIZED_DATES);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? (parsed as MissedFinalizeMap) : {};
+  } catch {
+    return {};
+  }
+}
+
+async function saveMissedFinalizeMap(map: MissedFinalizeMap): Promise<void> {
+  await AsyncStorage.setItem(STORAGE_MISSED_FINALIZED_DATES, JSON.stringify(map));
+}
+
+function shouldRunMissedFinalizationNow(now: Date, patrolDate: string): boolean {
+  if (localDateKey(now) !== patrolDate) return false;
+  const h = now.getHours();
+
+  // Finalize missed only during the patrol window and immediate morning grace.
+  return h >= 0 && h <= MISSED_FINALIZE_GRACE_END_HOUR;
+}
 
 export const PatrolScreen: React.FC = () => {
   const { session } = useSession();
@@ -179,6 +237,7 @@ export const PatrolScreen: React.FC = () => {
         if (ws) setWindowScans(JSON.parse(ws));
         if (ev) setEvents(JSON.parse(ev));
 
+        await cleanupInvalidPatrolHourRecords();
         await cleanupSyncedOlderThan(7);
         const all = await loadPatrolHourRecords();
         setHourRecords(all);
@@ -209,6 +268,7 @@ export const PatrolScreen: React.FC = () => {
     qrData: string,
   ) => {
     if (!session) return;
+    if (!isValidPatrolHourStart(patrolHour)) return;
 
     const rec = await upsertHourRecord({
       society: "Rosedale",
@@ -241,12 +301,19 @@ export const PatrolScreen: React.FC = () => {
 
     const markMissed = async () => {
       const d = new Date();
+      const patrolDate = patrolDateForNightShift(session.startedAt);
+      if (!shouldRunMissedFinalizationNow(d, patrolDate)) return;
+
+      const map = await loadMissedFinalizeMap();
+      const mapKey = missedFinalizeMapKey(session.guardId, patrolDate);
+      if (map[mapKey]) return;
+
       const h = d.getHours();
 
       const hoursToFinalize: number[] = [];
       if (h >= 0 && h <= 4) {
         for (let i = 0; i < h; i++) hoursToFinalize.push(i);
-      } else if (h >= 5) {
+      } else if (h >= 5 && h <= MISSED_FINALIZE_GRACE_END_HOUR) {
         for (let i = 0; i <= 4; i++) hoursToFinalize.push(i);
       } else {
         return;
@@ -254,14 +321,12 @@ export const PatrolScreen: React.FC = () => {
 
       if (hoursToFinalize.length === 0) return;
 
-      const dateKey = localDateKey();
-
       for (const hourStart of hoursToFinalize) {
         const rec = await upsertHourRecord({
           society: "Rosedale",
           guardId: session.guardId,
           guardName: session.guardName,
-          dateKey,
+          dateKey: patrolDate,
           hourStart,
         });
 
@@ -272,6 +337,11 @@ export const PatrolScreen: React.FC = () => {
         if (!rec.finalizedAt) {
           await finalizeHourRecord({ recordId: rec.id, status: "MISSED" });
         }
+      }
+
+      if (h >= 5) {
+        map[mapKey] = new Date().toISOString();
+        await saveMissedFinalizeMap(map);
       }
 
       const all = await loadPatrolHourRecords();

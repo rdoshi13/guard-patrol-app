@@ -4,6 +4,7 @@ import {
   patrolRecordToSheetRow,
   markHourRecordsSynced,
   cleanupSyncedOlderThan,
+  cleanupInvalidPatrolHourRecords,
 } from "../storage/patrol";
 import {
   getVisitorSyncPayload,
@@ -252,6 +253,9 @@ async function pushRows(
 export async function syncPatrolHourRecords(
   cfg: SyncConfig,
 ): Promise<SyncResult> {
+  // Drop any stale test/debug hour windows outside 00:00-05:00 before syncing.
+  await cleanupInvalidPatrolHourRecords();
+
   const records = await getUnsyncedHourRecords();
   if (records.length === 0) {
     return { ok: true, attempted: 0, synced: 0, skipped: 0 };

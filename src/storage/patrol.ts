@@ -53,6 +53,16 @@ export type PatrolSheetRow = {
 };
 
 const KEY = "patrol_hour_records_v1";
+const MIN_PATROL_HOUR_START = 0;
+const MAX_PATROL_HOUR_START = 4;
+
+function isValidPatrolHourStart(hourStart: number): boolean {
+  return (
+    Number.isInteger(hourStart) &&
+    hourStart >= MIN_PATROL_HOUR_START &&
+    hourStart <= MAX_PATROL_HOUR_START
+  );
+}
 
 function nowIso(): string {
   return new Date().toISOString();
@@ -114,6 +124,12 @@ export async function upsertHourRecord(input: {
   dateKey: string;
   hourStart: number;
 }): Promise<PatrolHourRecord> {
+  if (!isValidPatrolHourStart(input.hourStart)) {
+    throw new Error(
+      `Invalid patrol hourStart: ${input.hourStart}. Expected 0..4.`,
+    );
+  }
+
   const all = await loadPatrolHourRecords();
 
   const existing = all.find(
@@ -210,6 +226,7 @@ export async function getUnsyncedHourRecords(): Promise<PatrolHourRecord[]> {
   const all = await loadPatrolHourRecords();
   return all.filter(
     (r) =>
+      isValidPatrolHourStart(r.hourStart) &&
       !r.syncedAt &&
       !!r.finalizedAt &&
       (r.status === "COMPLETED" || r.status === "MISSED"),
@@ -247,6 +264,20 @@ export async function cleanupSyncedOlderThan(days: number = 7): Promise<void> {
   if (next.length !== all.length) {
     await savePatrolHourRecords(next);
   }
+}
+
+export async function cleanupInvalidPatrolHourRecords(): Promise<number> {
+  const all = await loadPatrolHourRecords();
+  if (all.length === 0) return 0;
+
+  const next = all.filter((r) => isValidPatrolHourStart(r.hourStart));
+  const removed = all.length - next.length;
+
+  if (removed > 0) {
+    await savePatrolHourRecords(next);
+  }
+
+  return removed;
 }
 
 function hourWindowLabel(hourStart: number): string {
