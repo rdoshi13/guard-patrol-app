@@ -435,7 +435,12 @@ export async function reorderDailyHelpTemplates(
     }
   }
 
-  const next = normalizeAndDedupe(ordered);
+  const next = normalizeAndDedupe(
+    ordered.map((item, index) => ({
+      ...item,
+      displayOrder: index + 1,
+    })),
+  );
   await writeTemplates(next);
   return next;
 }

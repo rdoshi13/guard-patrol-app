@@ -1,6 +1,7 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import {
   Alert,
+  Image,
   ScrollView,
   StyleSheet,
   Text,
@@ -9,6 +10,7 @@ import {
   View,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
+import * as ImagePicker from "expo-image-picker";
 import { AppButton } from "../components/AppButton";
 import { useSettings } from "../context/SettingsContext";
 import { useSession } from "../context/SessionContext";
@@ -83,6 +85,19 @@ function digitsOnly(value: string): string {
   return value.replace(/\D/g, "");
 }
 
+function normalizeImageUri(v?: string): string | undefined {
+  if (typeof v !== "string") return undefined;
+  const s = v.trim();
+  if (!s) return undefined;
+
+  const lowered = s.toLowerCase();
+  if (lowered === "null" || lowered === "undefined" || lowered === "nan") {
+    return undefined;
+  }
+
+  return s;
+}
+
 export const ManageDailyHelpScreen: React.FC = () => {
   const { language } = useSettings();
   const { session } = useSession();
@@ -95,6 +110,9 @@ export const ManageDailyHelpScreen: React.FC = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
+  const [isPhotoPreviewBroken, setIsPhotoPreviewBroken] = useState(false);
+  const scrollRef = useRef<ScrollView | null>(null);
+  const formSectionYRef = useRef(0);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -194,6 +212,7 @@ export const ManageDailyHelpScreen: React.FC = () => {
   const startCreate = () => {
     setEditingId(null);
     setForm(EMPTY_FORM);
+    setIsPhotoPreviewBroken(false);
   };
 
   const startEdit = (item: DailyHelpTemplate) => {
@@ -206,6 +225,14 @@ export const ManageDailyHelpScreen: React.FC = () => {
       wing: item.wing,
       flatNumber: item.flatNumber,
       photoUrl: item.photoUrl ?? "",
+    });
+    setIsPhotoPreviewBroken(false);
+
+    requestAnimationFrame(() => {
+      scrollRef.current?.scrollTo({
+        y: Math.max(0, formSectionYRef.current - 10),
+        animated: true,
+      });
     });
   };
 
@@ -229,6 +256,70 @@ export const ManageDailyHelpScreen: React.FC = () => {
       flatNumber: input.flatNumber,
       photoUrl: input.photoUrl ?? "",
     });
+    setIsPhotoPreviewBroken(false);
+  };
+
+  const pickFromGallery = async () => {
+    if (!canManage) {
+      Alert.alert(
+        t(language, "dailyHelpManageRequiresShiftTitle"),
+        t(language, "dailyHelpManageRequiresShiftMsg"),
+      );
+      return;
+    }
+
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert(
+        t(language, "addVisitorPermissionNeeded"),
+        t(language, "addVisitorGalleryPermission"),
+      );
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.5,
+    });
+
+    if (!result.canceled && result.assets.length > 0) {
+      setIsPhotoPreviewBroken(false);
+      setForm((prev) => ({
+        ...prev,
+        photoUrl: normalizeImageUri(result.assets[0].uri) ?? "",
+      }));
+    }
+  };
+
+  const takePhoto = async () => {
+    if (!canManage) {
+      Alert.alert(
+        t(language, "dailyHelpManageRequiresShiftTitle"),
+        t(language, "dailyHelpManageRequiresShiftMsg"),
+      );
+      return;
+    }
+
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert(
+        t(language, "addVisitorPermissionNeeded"),
+        t(language, "addVisitorCameraPermission"),
+      );
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      quality: 0.5,
+    });
+
+    if (!result.canceled && result.assets.length > 0) {
+      setIsPhotoPreviewBroken(false);
+      setForm((prev) => ({
+        ...prev,
+        photoUrl: normalizeImageUri(result.assets[0].uri) ?? "",
+      }));
+    }
   };
 
   const saveForm = async () => {
@@ -350,8 +441,16 @@ export const ManageDailyHelpScreen: React.FC = () => {
     setTemplates(next);
   };
 
+  const selectedPhotoUri = normalizeImageUri(form.photoUrl);
+  const selectedPhotoInitial =
+    String(form.name ?? "").trim().charAt(0).toUpperCase() || "?";
+
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView
+      ref={scrollRef}
+      style={styles.container}
+      contentContainerStyle={styles.content}
+    >
       <Text style={styles.title}>{t(language, "manageDailyHelpTitle")}</Text>
       <Text style={styles.subtitle}>{t(language, "manageDailyHelpSubtitle")}</Text>
 
@@ -391,7 +490,12 @@ export const ManageDailyHelpScreen: React.FC = () => {
         )}
       </View>
 
-      <View style={styles.card}>
+      <View
+        style={styles.card}
+        onLayout={(e) => {
+          formSectionYRef.current = e.nativeEvent.layout.y;
+        }}
+      >
         <Text style={styles.sectionTitle}>
           {editingId
             ? t(language, "manageDailyHelpEditSectionTitle")
@@ -491,13 +595,43 @@ export const ManageDailyHelpScreen: React.FC = () => {
           ))}
         </View>
 
-        <Text style={styles.fieldLabel}>{t(language, "manageDailyHelpPhotoUriLabel")}</Text>
-        <TextInput
-          value={form.photoUrl}
-          onChangeText={(value) => setForm((prev) => ({ ...prev, photoUrl: value }))}
-          placeholder={t(language, "manageDailyHelpPhotoUriPlaceholder")}
-          style={styles.input}
-        />
+        <Text style={styles.fieldLabel}>{t(language, "addVisitorPhotoLabel")}</Text>
+        {selectedPhotoUri ? (
+          <View style={{ alignItems: "center", marginBottom: 8 }}>
+            <View style={styles.photoPreviewWrap}>
+              <View style={styles.photoPreviewPlaceholder}>
+                <Text style={styles.photoPreviewInitial}>{selectedPhotoInitial}</Text>
+              </View>
+              {!isPhotoPreviewBroken ? (
+                <Image
+                  source={{ uri: selectedPhotoUri }}
+                  style={styles.photoPreview}
+                  onError={() => setIsPhotoPreviewBroken(true)}
+                />
+              ) : null}
+            </View>
+          </View>
+        ) : (
+          <Text style={styles.helper}>{t(language, "addVisitorOptional")}</Text>
+        )}
+        <View style={styles.photoButtonsRow}>
+          <View style={{ flex: 1, marginRight: 8 }}>
+            <AppButton
+              title={t(language, "takePhoto")}
+              onPress={takePhoto}
+              variant="secondary"
+              disabled={!canManage}
+            />
+          </View>
+          <View style={{ flex: 1, marginLeft: 8 }}>
+            <AppButton
+              title={t(language, "gallery")}
+              onPress={pickFromGallery}
+              variant="secondary"
+              disabled={!canManage}
+            />
+          </View>
+        </View>
 
         <View style={styles.formActions}>
           <View style={{ flex: 1 }}>
@@ -740,5 +874,33 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "600",
     color: "#1f2933",
+  },
+  photoPreview: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+  },
+  photoPreviewWrap: {
+    width: 90,
+    height: 90,
+  },
+  photoPreviewPlaceholder: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: "#ddd",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  photoPreviewInitial: {
+    fontSize: 30,
+    fontWeight: "700",
+  },
+  photoButtonsRow: {
+    flexDirection: "row",
+    marginTop: 6,
   },
 });

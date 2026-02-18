@@ -37,6 +37,9 @@ const strings = {
     settingsAdminTitle: "Admin",
     settingsManageGuards: "Manage Guards",
     settingsManageDailyHelp: "Manage Daily Help",
+    settingsExportLocalDataButton: "Export Local Data",
+    settingsExportLocalDataTitle: "Local Data Export",
+    settingsExportLocalDataFailed: "Could not export local data",
     settingsDailyHelpManageHelper:
       "Daily Help can be managed only while a guard shift is active.",
     settingsAdminHelper:
@@ -262,6 +265,9 @@ const strings = {
     settingsAdminTitle: "એડમિન",
     settingsManageGuards: "ગાર્ડ મેનેજ કરો",
     settingsManageDailyHelp: "દૈનિક મદદ મેનેજ કરો",
+    settingsExportLocalDataButton: "લોકલ ડેટા એક્સપોર્ટ કરો",
+    settingsExportLocalDataTitle: "લોકલ ડેટા એક્સપોર્ટ",
+    settingsExportLocalDataFailed: "લોકલ ડેટા એક્સપોર્ટ થઈ શક્યો નથી",
     settingsDailyHelpManageHelper:
       "દૈનિક મદદ મેનેજ કરવા માટે સક્રિય ગાર્ડ શિફ્ટ જરૂરી છે.",
     settingsAdminHelper:
@@ -487,6 +493,9 @@ const hi: typeof strings.en = {
   settingsAdminTitle: "एडमिन",
   settingsManageGuards: "गार्ड मैनेज करें",
   settingsManageDailyHelp: "दैनिक सहायक मैनेज करें",
+  settingsExportLocalDataButton: "लोकल डेटा एक्सपोर्ट करें",
+  settingsExportLocalDataTitle: "लोकल डेटा एक्सपोर्ट",
+  settingsExportLocalDataFailed: "लोकल डेटा एक्सपोर्ट नहीं हो सका",
   settingsDailyHelpManageHelper:
     "दैनिक सहायक मैनेज करने के लिए सक्रिय गार्ड शिफ्ट जरूरी है।",
   settingsAdminHelper:

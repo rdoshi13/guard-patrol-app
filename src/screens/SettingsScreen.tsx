@@ -1,7 +1,16 @@
 // src/screens/SettingsScreen.tsx
 import React, { useCallback } from "react";
-import { View, Text, StyleSheet, BackHandler, Alert } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  BackHandler,
+  Alert,
+  ActivityIndicator,
+  Share,
+} from "react-native";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { AppButton } from "../components/AppButton";
 import { useSettings } from "../context/SettingsContext";
@@ -12,6 +21,21 @@ export const SettingsScreen: React.FC = () => {
   const { language, setLanguage } = useSettings();
   const { session } = useSession();
   const navigation = useNavigation<any>();
+  const [isExporting, setIsExporting] = React.useState(false);
+
+  const EXPORT_KEYS = [
+    "guards",
+    "patrol_hour_records_v1",
+    "visitor_profiles_v1",
+    "visitor_entries_v1",
+    "daily_help_local_v2",
+    "daily_help_templates_v1",
+    "shift_session_v1",
+    "shift_last_session_v1",
+    "language",
+    "last_sync_patrol_at_v1",
+    "last_sync_visitors_at_v1",
+  ] as const;
 
   useFocusEffect(
     useCallback(() => {
@@ -37,6 +61,51 @@ export const SettingsScreen: React.FC = () => {
     }
 
     navigation.navigate("ManageDailyHelp");
+  };
+
+  const exportLocalData = async () => {
+    if (isExporting) return;
+
+    try {
+      setIsExporting(true);
+
+      const allKnownKeys = Array.from(EXPORT_KEYS);
+      const existing = await AsyncStorage.multiGet(allKnownKeys);
+
+      const records: Record<string, unknown> = {};
+      let presentKeys = 0;
+
+      for (const [key, raw] of existing) {
+        if (raw == null) continue;
+        presentKeys += 1;
+        try {
+          records[key] = JSON.parse(raw);
+        } catch {
+          records[key] = raw;
+        }
+      }
+
+      const payload = {
+        exportedAt: new Date().toISOString(),
+        app: "guard-patrol-app",
+        deviceScope: "local",
+        presentKeys,
+        records,
+      };
+
+      const message = JSON.stringify(payload, null, 2);
+      await Share.share({
+        title: t(language, "settingsExportLocalDataTitle"),
+        message,
+      });
+    } catch (e: any) {
+      Alert.alert(
+        t(language, "settingsExportLocalDataFailed"),
+        String(e?.message ?? e),
+      );
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   return (
@@ -92,6 +161,19 @@ export const SettingsScreen: React.FC = () => {
           variant="secondary"
         />
 
+        <View style={{ height: 10 }} />
+        {isExporting ? (
+          <View style={styles.actionSpinnerWrap}>
+            <ActivityIndicator />
+          </View>
+        ) : (
+          <AppButton
+            title={t(language, "settingsExportLocalDataButton")}
+            onPress={exportLocalData}
+            variant="secondary"
+          />
+        )}
+
         <Text style={styles.helper}>{t(language, "settingsDailyHelpManageHelper")}</Text>
       </View>
     </View>
@@ -118,6 +200,15 @@ const styles = StyleSheet.create({
     width: "33.33%",
     paddingHorizontal: 4,
     marginBottom: 8,
+  },
+  actionSpinnerWrap: {
+    height: 40,
+    borderWidth: 1,
+    borderColor: "#cfd8dc",
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#fff",
   },
 
   helper: { marginTop: 10, fontSize: 12, color: "#546e7a" },
