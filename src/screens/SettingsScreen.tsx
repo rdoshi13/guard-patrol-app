@@ -1,25 +1,17 @@
 // src/screens/SettingsScreen.tsx
 import React, { useCallback } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  BackHandler,
-  Alert,
-  ActivityIndicator,
-} from "react-native";
+import { View, Text, StyleSheet, BackHandler, Alert } from "react-native";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 
 import { AppButton } from "../components/AppButton";
 import { useSettings } from "../context/SettingsContext";
+import { useSession } from "../context/SessionContext";
 import { t } from "../i18n/strings";
-import { syncDailyHelpTemplates } from "../sync/sheets";
-import { SHEETS_SYNC_CONFIG } from "../constants/sheets";
 
 export const SettingsScreen: React.FC = () => {
   const { language, setLanguage } = useSettings();
+  const { session } = useSession();
   const navigation = useNavigation<any>();
-  const [isSyncingDailyHelp, setIsSyncingDailyHelp] = React.useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -35,40 +27,16 @@ export const SettingsScreen: React.FC = () => {
     }, [navigation]),
   );
 
-  const syncDailyHelpNow = async () => {
-    if (isSyncingDailyHelp) return;
-
-    try {
-      setIsSyncingDailyHelp(true);
-      const result = await syncDailyHelpTemplates(SHEETS_SYNC_CONFIG);
-      if (!result.ok) {
-        Alert.alert(
-          t(language, "settingsDailyHelpSyncFailed"),
-          result.message ?? t(language, "patrolSyncDidNotComplete"),
-        );
-        return;
-      }
-
-      if (result.synced === 0 && result.attempted === 0) {
-        Alert.alert(
-          t(language, "settingsDailyHelpSyncComplete"),
-          t(language, "settingsDailyHelpSyncNoData"),
-        );
-        return;
-      }
-
+  const openManageDailyHelp = () => {
+    if (!session) {
       Alert.alert(
-        t(language, "settingsDailyHelpSyncComplete"),
-        `${t(language, "visitorsAttempted")}: ${result.attempted}\n${t(language, "visitorsSynced")}: ${result.synced}\n${t(language, "visitorsSkipped")}: ${result.skipped}`,
+        t(language, "dailyHelpManageRequiresShiftTitle"),
+        t(language, "dailyHelpManageRequiresShiftMsg"),
       );
-    } catch (e: any) {
-      Alert.alert(
-        t(language, "settingsDailyHelpSyncFailed"),
-        String(e?.message ?? e),
-      );
-    } finally {
-      setIsSyncingDailyHelp(false);
+      return;
     }
+
+    navigation.navigate("ManageDailyHelp");
   };
 
   return (
@@ -76,9 +44,7 @@ export const SettingsScreen: React.FC = () => {
       <Text style={styles.title}>{t(language, "settingsTitle")}</Text>
 
       <View style={styles.card}>
-        <Text style={styles.sectionTitle}>
-          {t(language, "currentLanguage")}
-        </Text>
+        <Text style={styles.sectionTitle}>{t(language, "currentLanguage")}</Text>
 
         <View style={styles.langRow}>
           <View style={styles.langButtonCell}>
@@ -110,9 +76,7 @@ export const SettingsScreen: React.FC = () => {
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.sectionTitle}>
-          {t(language, "settingsAdminTitle")}
-        </Text>
+        <Text style={styles.sectionTitle}>{t(language, "settingsAdminTitle")}</Text>
 
         <AppButton
           title={t(language, "settingsManageGuards")}
@@ -121,19 +85,14 @@ export const SettingsScreen: React.FC = () => {
         />
 
         <View style={{ height: 10 }} />
-        {isSyncingDailyHelp ? (
-          <View style={styles.syncSpinnerWrap}>
-            <ActivityIndicator />
-          </View>
-        ) : (
-          <AppButton
-            title={t(language, "settingsSyncDailyHelpNow")}
-            onPress={syncDailyHelpNow}
-            variant="secondary"
-          />
-        )}
 
-        <Text style={styles.helper}>{t(language, "settingsAdminHelper")}</Text>
+        <AppButton
+          title={t(language, "settingsManageDailyHelp")}
+          onPress={openManageDailyHelp}
+          variant="secondary"
+        />
+
+        <Text style={styles.helper}>{t(language, "settingsDailyHelpManageHelper")}</Text>
       </View>
     </View>
   );
@@ -159,15 +118,6 @@ const styles = StyleSheet.create({
     width: "33.33%",
     paddingHorizontal: 4,
     marginBottom: 8,
-  },
-  syncSpinnerWrap: {
-    height: 40,
-    borderWidth: 1,
-    borderColor: "#cfd8dc",
-    borderRadius: 8,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#fff",
   },
 
   helper: { marginTop: 10, fontSize: 12, color: "#546e7a" },

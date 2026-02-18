@@ -14,13 +14,10 @@ import {
 import { AppButton } from "../components/AppButton";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { useSettings } from "../context/SettingsContext";
-import {
-  VisitorProfile,
-  getTopVisitorsByFrequency,
-  loadVisitorProfiles,
-} from "../storage/visitors";
+import { useSession } from "../context/SessionContext";
+import { VisitorProfile, getTopVisitorsByFrequency } from "../storage/visitors";
 import { t } from "../i18n/strings";
-import { syncDailyHelpTemplates, syncVisitorEntries, SyncResult } from "../sync/sheets";
+import { syncVisitorEntries, SyncResult } from "../sync/sheets";
 import { SHEETS_SYNC_CONFIG } from "../constants/sheets";
 import { DailyHelpTemplate, loadDailyHelpTemplates } from "../storage/dailyHelp";
 
@@ -57,6 +54,7 @@ function formatDateTime(iso?: string): string {
 
 export const VisitorsScreen: React.FC = () => {
   const { language } = useSettings();
+  const { session } = useSession();
   const navigation = useNavigation<any>();
 
   const [topVisitors, setTopVisitors] = useState<VisitorProfile[]>([]);
@@ -70,47 +68,99 @@ export const VisitorsScreen: React.FC = () => {
   const [brokenFrequentImages, setBrokenFrequentImages] = useState<
     Record<string, boolean>
   >({});
+  const [loadedOnce, setLoadedOnce] = useState(false);
 
-  const loadTop = async () => {
-    setLoading(true);
-    const top = await getTopVisitorsByFrequency(10);
-    setBrokenFrequentImages({});
-    setTopVisitors(top);
-    setLoading(false);
-  };
-
-  const loadDailyHelp = async () => {
-    setLoadingDailyHelp(true);
-    const [templates, profiles] = await Promise.all([
-      loadDailyHelpTemplates(),
-      loadVisitorProfiles(),
-    ]);
-
-    const profilePhotoByPhone = new Map<string, string>();
-    for (const p of profiles) {
-      const uri = normalizeImageUri(p.photoUri);
-      if (!p.phone || !uri) continue;
-      if (!profilePhotoByPhone.has(p.phone)) {
-        profilePhotoByPhone.set(p.phone, uri);
+  const sameTopVisitors = (left: VisitorProfile[], right: VisitorProfile[]) => {
+    if (left.length !== right.length) return false;
+    for (let i = 0; i < left.length; i += 1) {
+      const a = left[i];
+      const b = right[i];
+      if (
+        a.id !== b.id ||
+        a.name !== b.name ||
+        a.phone !== b.phone ||
+        a.type !== b.type ||
+        a.vehicle !== b.vehicle ||
+        a.photoUri !== b.photoUri ||
+        a.visitCount !== b.visitCount ||
+        a.lastSeenAt !== b.lastSeenAt
+      ) {
+        return false;
       }
     }
+    return true;
+  };
 
-    const next: DailyHelpCard[] = templates.map((item) => ({
-      ...item,
-      resolvedPhotoUri:
-        normalizeImageUri(item.photoUrl) ?? profilePhotoByPhone.get(item.phone),
-    }));
+  const sameDailyHelp = (left: DailyHelpCard[], right: DailyHelpCard[]) => {
+    if (left.length !== right.length) return false;
+    for (let i = 0; i < left.length; i += 1) {
+      const a = left[i];
+      const b = right[i];
+      if (
+        a.id !== b.id ||
+        a.name !== b.name ||
+        a.phone !== b.phone ||
+        a.type !== b.type ||
+        a.vehicle !== b.vehicle ||
+        a.wing !== b.wing ||
+        a.flatNumber !== b.flatNumber ||
+        a.photoUrl !== b.photoUrl ||
+        a.resolvedPhotoUri !== b.resolvedPhotoUri
+      ) {
+        return false;
+      }
+    }
+    return true;
+  };
 
-    setBrokenDailyHelpImages({});
-    setDailyHelp(next);
-    setLoadingDailyHelp(false);
+  const loadTop = async (forceSpinner: boolean = false) => {
+    if (!loadedOnce || forceSpinner) {
+      setLoading(true);
+    }
+    try {
+      const top = await getTopVisitorsByFrequency(10);
+      setTopVisitors((prev) => {
+        if (sameTopVisitors(prev, top)) return prev;
+        setBrokenFrequentImages({});
+        return top;
+      });
+    } finally {
+      if (!loadedOnce || forceSpinner) {
+        setLoading(false);
+      }
+    }
+  };
+
+  const loadDailyHelp = async (forceSpinner: boolean = false) => {
+    if (!loadedOnce || forceSpinner) {
+      setLoadingDailyHelp(true);
+    }
+    try {
+      const templates = await loadDailyHelpTemplates();
+
+      const next: DailyHelpCard[] = templates.map((item) => ({
+        ...item,
+        resolvedPhotoUri: normalizeImageUri(item.photoUrl),
+      }));
+
+      setDailyHelp((prev) => {
+        if (sameDailyHelp(prev, next)) return prev;
+        setBrokenDailyHelpImages({});
+        return next;
+      });
+    } finally {
+      if (!loadedOnce || forceSpinner) {
+        setLoadingDailyHelp(false);
+      }
+    }
   };
 
   useFocusEffect(
     useCallback(() => {
-      loadTop();
-      loadDailyHelp();
-    }, []),
+      Promise.all([loadTop(false), loadDailyHelp(false)]).finally(() => {
+        setLoadedOnce(true);
+      });
+    }, [loadedOnce]),
   );
 
   useFocusEffect(
@@ -127,11 +177,7 @@ export const VisitorsScreen: React.FC = () => {
     }, [navigation]),
   );
 
-  const summarizeSync = (
-    label: string,
-    result: SyncResult,
-    noPendingKey: "visitorsSyncNoPending" | "visitorsDailyHelpSyncNoData",
-  ) => {
+  const summarizeSync = (label: string, result: SyncResult) => {
     if (!result.ok) {
       return `${label}: ${t(language, "visitorsSyncFailed")}\n${result.message ?? t(language, "patrolSyncDidNotComplete")}`;
     }
@@ -141,7 +187,7 @@ export const VisitorsScreen: React.FC = () => {
     const skipped = Number(result.skipped ?? 0);
 
     if (attempted === 0 && synced === 0) {
-      return `${label}: ${t(language, noPendingKey)}`;
+      return `${label}: ${t(language, "visitorsSyncNoPending")}`;
     }
 
     return `${label}:\n${t(language, "visitorsAttempted")}: ${attempted}\n${t(language, "visitorsSynced")}: ${synced}\n${t(language, "visitorsSkipped")}: ${skipped}`;
@@ -154,29 +200,16 @@ export const VisitorsScreen: React.FC = () => {
       setIsSyncing(true);
 
       const visitorResult = await syncVisitorEntries(SHEETS_SYNC_CONFIG);
-      const dailyHelpResult = await syncDailyHelpTemplates(SHEETS_SYNC_CONFIG);
 
-      if (dailyHelpResult.ok) {
-        await loadDailyHelp();
-      }
+      const message = summarizeSync(
+        t(language, "visitorsSyncVisitorRecordsLabel"),
+        visitorResult,
+      );
 
-      const message = [
-        summarizeSync(
-          t(language, "visitorsSyncVisitorRecordsLabel"),
-          visitorResult,
-          "visitorsSyncNoPending",
-        ),
-        "",
-        summarizeSync(
-          t(language, "visitorsSyncDailyHelpLabel"),
-          dailyHelpResult,
-          "visitorsDailyHelpSyncNoData",
-        ),
-      ].join("\n");
-
-      const allOk = visitorResult.ok && dailyHelpResult.ok;
       Alert.alert(
-        allOk ? t(language, "visitorsSyncComplete") : t(language, "visitorsSyncFailed"),
+        visitorResult.ok
+          ? t(language, "visitorsSyncComplete")
+          : t(language, "visitorsSyncFailed"),
         message,
       );
     } catch (e: any) {
@@ -184,6 +217,18 @@ export const VisitorsScreen: React.FC = () => {
     } finally {
       setIsSyncing(false);
     }
+  };
+
+  const openManageDailyHelp = () => {
+    if (!session) {
+      Alert.alert(
+        t(language, "dailyHelpManageRequiresShiftTitle"),
+        t(language, "dailyHelpManageRequiresShiftMsg"),
+      );
+      return;
+    }
+
+    navigation.navigate("ManageDailyHelp");
   };
 
   const visitTypeLabel = (type: string) => {
@@ -248,7 +293,18 @@ export const VisitorsScreen: React.FC = () => {
         />
       </View>
 
-      <Text style={styles.sectionTitle}>{t(language, "visitorsDailyHelp")}</Text>
+      <View style={styles.sectionHeader}>
+        <Text style={[styles.sectionTitle, { flex: 1, marginTop: 0 }]}>
+          {t(language, "visitorsDailyHelp")}
+        </Text>
+        <View style={{ width: 150 }}>
+          <AppButton
+            title={t(language, "visitorsManageDailyHelp")}
+            onPress={openManageDailyHelp}
+            variant="secondary"
+          />
+        </View>
+      </View>
       <Text style={styles.sectionSub}>{t(language, "visitorsQuickAddHelp")}</Text>
 
       {loadingDailyHelp ? (
@@ -333,7 +389,7 @@ export const VisitorsScreen: React.FC = () => {
           <View style={{ width: 90 }}>
             <AppButton
               title={t(language, "visitorsRefresh")}
-              onPress={loadTop}
+              onPress={() => loadTop(true)}
               variant="secondary"
             />
           </View>
@@ -351,9 +407,7 @@ export const VisitorsScreen: React.FC = () => {
             <View key={item.id} style={styles.row}>
               <View style={styles.avatarWrap}>
                 <View style={styles.avatarPlaceholder}>
-                  <Text style={styles.avatarInitial}>
-                    {getInitial(item.name)}
-                  </Text>
+                  <Text style={styles.avatarInitial}>{getInitial(item.name)}</Text>
                 </View>
                 {frequentPhotoUri && !brokenFrequentImages[item.id] ? (
                   <Image
@@ -372,10 +426,7 @@ export const VisitorsScreen: React.FC = () => {
               <View style={{ flex: 1 }}>
                 <Text style={styles.name}>{item.name}</Text>
                 <Text style={styles.meta}>
-                  {visitTypeLabel(item.type)} • {item.visitCount}{" "}
-                  {visitsLabel(item.visitCount)} • {t(language, "visitorsLast")}:
-                  {" "}
-                  {formatDateTime(item.lastSeenAt)}
+                  {visitTypeLabel(item.type)} • {item.visitCount} {visitsLabel(item.visitCount)} • {t(language, "visitorsLast")}: {formatDateTime(item.lastSeenAt)}
                 </Text>
               </View>
             </View>

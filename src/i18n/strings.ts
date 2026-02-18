@@ -33,15 +33,14 @@ const strings = {
     gujarati: "Gujarati",
     hindi: "Hindi",
     settingsSyncHelper:
-      "Patrol and visitor sync runs on app open/resume when the last successful sync is older than 12 hours.",
+      "Auto sync runs on app open/resume and while the app stays open: patrol at 5:30 AM and 11:30 PM, visitors every hour.",
     settingsAdminTitle: "Admin",
     settingsManageGuards: "Manage Guards",
-    settingsSyncDailyHelpNow: "Sync Daily Help Now",
-    settingsDailyHelpSyncComplete: "Daily Help sync complete",
-    settingsDailyHelpSyncFailed: "Daily Help sync failed",
-    settingsDailyHelpSyncNoData: "No Daily Help updates to sync.",
+    settingsManageDailyHelp: "Manage Daily Help",
+    settingsDailyHelpManageHelper:
+      "Daily Help can be managed only while a guard shift is active.",
     settingsAdminHelper:
-      "Manage Guards requires PIN. Daily Help sync does not. You can't edit/delete a guard who is currently on duty.",
+      "Manage Guards requires PIN. You can't edit/delete a guard who is currently on duty.",
 
     // Guard Select
     guardSelectTitle: "Guard Select",
@@ -128,14 +127,13 @@ const strings = {
     visitorsSweeper: "Sweeper",
     visitorsFrequentTop10: "Frequent Visitors (Top 10)",
     visitorsRefresh: "Refresh",
+    visitorsManageDailyHelp: "Manage Daily Help",
     visitorsSyncComplete: "Visitor sync complete",
     visitorsSyncFailed: "Visitor sync failed",
     visitorsSyncVisitorRecordsLabel: "Visitor records",
-    visitorsSyncDailyHelpLabel: "Daily Help templates",
     visitorsSyncNoPending: "No pending visitor records to sync.",
-    visitorsDailyHelpSyncNoData: "No Daily Help updates to sync.",
     visitorsDailyHelpEmpty:
-      "No Daily Help templates yet. Ask admin to add entries in Google Sheet.",
+      "No Daily Help entries yet. Tap Manage Daily Help.",
     visitorsAttempted: "Attempted",
     visitorsSynced: "Synced",
     visitorsSkipped: "Skipped",
@@ -173,6 +171,9 @@ const strings = {
     addVisitorSaveFailedTitle: "Save failed",
     addVisitorSaveFailedMsg:
       "Could not save the visitor entry. Please try again.",
+    dailyHelpManageRequiresShiftTitle: "Start shift",
+    dailyHelpManageRequiresShiftMsg:
+      "Start a shift before managing Daily Help.",
 
     // Admin PIN
     adminPinTitle: "Admin PIN",
@@ -199,6 +200,33 @@ const strings = {
     manageGuardsActiveBadge: "Active shift",
     manageGuardsNoneFound: "No guards found.",
     manageGuardsEditTitle: "Edit Guard",
+
+    // Manage Daily Help
+    manageDailyHelpTitle: "Manage Daily Help",
+    manageDailyHelpSubtitle:
+      "Add, edit, delete, and reorder daily staff shortcuts.",
+    manageDailyHelpFromVisitors: "Add from Previous Visitors",
+    manageDailyHelpSearchPlaceholder: "Search by name or phone",
+    manageDailyHelpNoProfiles: "No matching visitors found.",
+    manageDailyHelpUse: "Use",
+    manageDailyHelpProfileInvalidTitle: "Cannot use visitor",
+    manageDailyHelpProfileInvalidMsg:
+      "This visitor does not have enough data for Daily Help.",
+    manageDailyHelpEditSectionTitle: "Edit Daily Help Entry",
+    manageDailyHelpAddSectionTitle: "Add Daily Help Entry",
+    manageDailyHelpPhotoUriLabel: "Photo URI (optional)",
+    manageDailyHelpPhotoUriPlaceholder: "Paste image URI (optional)",
+    manageDailyHelpUpdateButton: "Update Entry",
+    manageDailyHelpAddButton: "Add Entry",
+    manageDailyHelpDeleteTitle: "Delete Daily Help Entry?",
+    manageDailyHelpDeleteMsg: "This cannot be undone.",
+    manageDailyHelpExistingList: "Current Daily Help Entries",
+    manageDailyHelpEmpty: "No Daily Help entries yet.",
+    manageDailyHelpEditShort: "Edit",
+    manageDailyHelpDuplicateTitle: "Duplicate phone",
+    manageDailyHelpDuplicateMsg:
+      "This phone number is already in Daily Help.",
+    manageDailyHelpSaveFailedTitle: "Could not save Daily Help",
   },
   gu: {
     // Common
@@ -230,16 +258,14 @@ const strings = {
     gujarati: "ગુજરાતી",
     hindi: "હિન્દી",
     settingsSyncHelper:
-      "છેલ્લી સફળ સિંકને 12 કલાકથી વધુ થયા હોય ત્યારે એપ ખુલતા અથવા ફરી સક્રિય થતા પેટ્રોલ અને વિઝિટર સિંક થાય છે.",
+      "ઓટો સિંક એપ ખુલતા/ફરી સક્રિય થતા અને એપ ચાલુ હોય ત્યારે થાય છે: પેટ્રોલ 5:30 AM અને 11:30 PM, મહેમાન દર કલાકે.",
     settingsAdminTitle: "એડમિન",
     settingsManageGuards: "ગાર્ડ મેનેજ કરો",
-    settingsSyncDailyHelpNow: "દૈનિક મદદ હમણાં સિંક કરો",
-    settingsDailyHelpSyncComplete: "દૈનિક મદદ સિંક પૂર્ણ",
-    settingsDailyHelpSyncFailed: "દૈનિક મદદ સિંક નિષ્ફળ",
-    settingsDailyHelpSyncNoData:
-      "સિંક કરવા માટે દૈનિક મદદમાં કોઈ નવા અપડેટ્સ નથી.",
+    settingsManageDailyHelp: "દૈનિક મદદ મેનેજ કરો",
+    settingsDailyHelpManageHelper:
+      "દૈનિક મદદ મેનેજ કરવા માટે સક્રિય ગાર્ડ શિફ્ટ જરૂરી છે.",
     settingsAdminHelper:
-      "ગાર્ડ મેનેજ કરવા માટે PIN જરૂરી છે. દૈનિક મદદ સિંક માટે PIN જરૂરી નથી. હાલ ડ્યૂટી પર રહેલા ગાર્ડને એડિટ/ડિલીટ કરી શકાતાં નથી.",
+      "ગાર્ડ મેનેજ કરવા માટે PIN જરૂરી છે. હાલ ડ્યૂટી પર રહેલા ગાર્ડને એડિટ/ડિલીટ કરી શકાતાં નથી.",
 
     // Guard Select
     guardSelectTitle: "ગાર્ડ પસંદ કરો",
@@ -324,15 +350,13 @@ const strings = {
     visitorsSweeper: "સફાઈકર્મી",
     visitorsFrequentTop10: "વારંવાર આવતા મહેમાનો (ટોપ 10)",
     visitorsRefresh: "રીફ્રેશ",
+    visitorsManageDailyHelp: "દૈનિક મદદ મેનેજ કરો",
     visitorsSyncComplete: "મહેમાન સિંક પૂર્ણ",
     visitorsSyncFailed: "મહેમાન સિંક નિષ્ફળ",
     visitorsSyncVisitorRecordsLabel: "મહેમાન રેકોર્ડ્સ",
-    visitorsSyncDailyHelpLabel: "દૈનિક મદદ નમૂનાઓ",
     visitorsSyncNoPending: "સિંક કરવા માટે કોઈ બાકી મહેમાન રેકોર્ડ નથી.",
-    visitorsDailyHelpSyncNoData:
-      "સિંક કરવા માટે દૈનિક મદદમાં કોઈ નવા અપડેટ્સ નથી.",
     visitorsDailyHelpEmpty:
-      "હજુ દૈનિક મદદના નમૂનાઓ નથી. એડમિનને Google Sheet માં એન્ટ્રી ઉમેરવા કહો.",
+      "હજુ દૈનિક મદદમાં એન્ટ્રી નથી. દૈનિક મદદ મેનેજ કરો પર ટૅપ કરો.",
     visitorsAttempted: "પ્રયાસ",
     visitorsSynced: "સિંક થયેલ",
     visitorsSkipped: "છોડેલ",
@@ -368,6 +392,9 @@ const strings = {
     addVisitorMissingInfoTitle: "માહિતી અધૂરી છે",
     addVisitorSaveFailedTitle: "સેવ કરવામાં નિષ્ફળ",
     addVisitorSaveFailedMsg: "મહેમાન એન્ટ્રી સેવ થઈ શકી નથી. ફરી પ્રયાસ કરો.",
+    dailyHelpManageRequiresShiftTitle: "શિફ્ટ શરૂ કરો",
+    dailyHelpManageRequiresShiftMsg:
+      "દૈનિક મદદ મેનેજ કરતા પહેલાં શિફ્ટ શરૂ કરો.",
 
     // Admin PIN
     adminPinTitle: "એડમિન PIN",
@@ -394,6 +421,33 @@ const strings = {
     manageGuardsActiveBadge: "સક્રિય શિફ્ટ",
     manageGuardsNoneFound: "કોઈ ગાર્ડ મળ્યો નથી.",
     manageGuardsEditTitle: "ગાર્ડ એડિટ કરો",
+
+    // Manage Daily Help
+    manageDailyHelpTitle: "દૈનિક મદદ મેનેજ કરો",
+    manageDailyHelpSubtitle:
+      "રોજના સ્ટાફ શોર્ટકટ ઉમેરો, એડિટ કરો, ડિલીટ કરો અને ક્રમ બદલો.",
+    manageDailyHelpFromVisitors: "પાછલા મહેમાનોમાંથી ઉમેરો",
+    manageDailyHelpSearchPlaceholder: "નામ અથવા ફોનથી શોધો",
+    manageDailyHelpNoProfiles: "મેચ થતા મહેમાનો મળ્યા નથી.",
+    manageDailyHelpUse: "વાપરો",
+    manageDailyHelpProfileInvalidTitle: "મહેમાન ઉપયોગ કરી શકાતો નથી",
+    manageDailyHelpProfileInvalidMsg:
+      "આ મહેમાનમાં દૈનિક મદદ માટે પૂરતી માહિતી નથી.",
+    manageDailyHelpEditSectionTitle: "દૈનિક મદદ એન્ટ્રી એડિટ કરો",
+    manageDailyHelpAddSectionTitle: "દૈનિક મદદ એન્ટ્રી ઉમેરો",
+    manageDailyHelpPhotoUriLabel: "ફોટો URI (ઐચ્છિક)",
+    manageDailyHelpPhotoUriPlaceholder: "ઇમેજ URI પેસ્ટ કરો (ઐચ્છિક)",
+    manageDailyHelpUpdateButton: "એન્ટ્રી અપડેટ કરો",
+    manageDailyHelpAddButton: "એન્ટ્રી ઉમેરો",
+    manageDailyHelpDeleteTitle: "દૈનિક મદદ એન્ટ્રી ડિલીટ કરવી?",
+    manageDailyHelpDeleteMsg: "આ પાછું ફેરવી શકાશે નહીં.",
+    manageDailyHelpExistingList: "હાલની દૈનિક મદદ એન્ટ્રીઓ",
+    manageDailyHelpEmpty: "હજુ દૈનિક મદદમાં કોઈ એન્ટ્રી નથી.",
+    manageDailyHelpEditShort: "એડિટ",
+    manageDailyHelpDuplicateTitle: "ડુપ્લિકેટ ફોન",
+    manageDailyHelpDuplicateMsg:
+      "આ ફોન નંબર પહેલેથી જ દૈનિક મદદમાં છે.",
+    manageDailyHelpSaveFailedTitle: "દૈનિક મદદ સેવ થઈ નથી",
   },
 };
 
@@ -429,16 +483,14 @@ const hi: typeof strings.en = {
   gujarati: "गुजराती",
   hindi: "हिन्दी",
   settingsSyncHelper:
-    "जब पिछला सफल सिंक 12 घंटे से पुराना हो, तब ऐप खुलने/फिर सक्रिय होने पर पेट्रोल और विज़िटर सिंक चलता है।",
+    "ऑटो सिंक ऐप खुलने/फिर सक्रिय होने पर और ऐप खुला रहने पर चलता है: पेट्रोल 5:30 AM और 11:30 PM, मुलाक़ाती हर घंटे।",
   settingsAdminTitle: "एडमिन",
   settingsManageGuards: "गार्ड मैनेज करें",
-  settingsSyncDailyHelpNow: "दैनिक सहायक अभी सिंक करें",
-  settingsDailyHelpSyncComplete: "दैनिक सहायक सिंक पूरा",
-  settingsDailyHelpSyncFailed: "दैनिक सहायक सिंक असफल",
-  settingsDailyHelpSyncNoData:
-    "सिंक करने के लिए दैनिक सहायक में कोई नया अपडेट नहीं है।",
+  settingsManageDailyHelp: "दैनिक सहायक मैनेज करें",
+  settingsDailyHelpManageHelper:
+    "दैनिक सहायक मैनेज करने के लिए सक्रिय गार्ड शिफ्ट जरूरी है।",
   settingsAdminHelper:
-    "गार्ड मैनेज करने के लिए PIN चाहिए। दैनिक सहायक सिंक के लिए PIN नहीं चाहिए। ड्यूटी पर मौजूद गार्ड को ऐडिट/डिलीट नहीं कर सकते।",
+    "गार्ड मैनेज करने के लिए PIN चाहिए। ड्यूटी पर मौजूद गार्ड को ऐडिट/डिलीट नहीं कर सकते।",
 
   // Guard Select
   guardSelectTitle: "गार्ड चुनें",
@@ -523,16 +575,14 @@ const hi: typeof strings.en = {
   visitorsSweeper: "सफाईकर्मी",
   visitorsFrequentTop10: "अक्सर आने वाले मुलाक़ाती (टॉप 10)",
   visitorsRefresh: "रिफ्रेश",
+  visitorsManageDailyHelp: "दैनिक सहायक मैनेज करें",
   visitorsSyncComplete: "मुलाक़ाती सिंक पूरा",
   visitorsSyncFailed: "मुलाक़ाती सिंक असफल",
   visitorsSyncVisitorRecordsLabel: "मुलाक़ाती रिकॉर्ड्स",
-  visitorsSyncDailyHelpLabel: "दैनिक सहायक नमूने",
   visitorsSyncNoPending:
     "सिंक करने के लिए कोई लंबित मुलाक़ाती रिकॉर्ड नहीं है।",
-  visitorsDailyHelpSyncNoData:
-    "सिंक करने के लिए दैनिक सहायक में कोई नया अपडेट नहीं है।",
   visitorsDailyHelpEmpty:
-    "अभी कोई दैनिक सहायक नमूना नहीं है। एडमिन से Google Sheet में एंट्री जोड़ने को कहें।",
+    "अभी दैनिक सहायक एंट्री नहीं है। दैनिक सहायक मैनेज करें पर टैप करें।",
   visitorsAttempted: "प्रयास",
   visitorsSynced: "सिंक हुआ",
   visitorsSkipped: "छोड़ा गया",
@@ -570,6 +620,9 @@ const hi: typeof strings.en = {
   addVisitorSaveFailedTitle: "सेव विफल",
   addVisitorSaveFailedMsg:
     "मुलाक़ाती एंट्री सेव नहीं हो सकी। कृपया फिर प्रयास करें।",
+  dailyHelpManageRequiresShiftTitle: "शिफ्ट शुरू करें",
+  dailyHelpManageRequiresShiftMsg:
+    "दैनिक सहायक मैनेज करने से पहले शिफ्ट शुरू करें।",
 
   // Admin PIN
   adminPinTitle: "एडमिन PIN",
@@ -596,6 +649,33 @@ const hi: typeof strings.en = {
   manageGuardsActiveBadge: "सक्रिय शिफ्ट",
   manageGuardsNoneFound: "कोई गार्ड नहीं मिला।",
   manageGuardsEditTitle: "गार्ड ऐडिट करें",
+
+  // Manage Daily Help
+  manageDailyHelpTitle: "दैनिक सहायक मैनेज करें",
+  manageDailyHelpSubtitle:
+    "रोज के स्टाफ शॉर्टकट जोड़ें, ऐडिट करें, डिलीट करें और क्रम बदलें।",
+  manageDailyHelpFromVisitors: "पिछले मुलाक़ातियों से जोड़ें",
+  manageDailyHelpSearchPlaceholder: "नाम या फोन से खोजें",
+  manageDailyHelpNoProfiles: "मिलते हुए मुलाक़ाती नहीं मिले।",
+  manageDailyHelpUse: "यूज़",
+  manageDailyHelpProfileInvalidTitle: "मुलाक़ाती इस्तेमाल नहीं हो सकता",
+  manageDailyHelpProfileInvalidMsg:
+    "इस मुलाक़ाती में दैनिक सहायक के लिए पर्याप्त जानकारी नहीं है।",
+  manageDailyHelpEditSectionTitle: "दैनिक सहायक एंट्री ऐडिट करें",
+  manageDailyHelpAddSectionTitle: "दैनिक सहायक एंट्री जोड़ें",
+  manageDailyHelpPhotoUriLabel: "फोटो URI (वैकल्पिक)",
+  manageDailyHelpPhotoUriPlaceholder: "इमेज URI पेस्ट करें (वैकल्पिक)",
+  manageDailyHelpUpdateButton: "एंट्री अपडेट करें",
+  manageDailyHelpAddButton: "एंट्री जोड़ें",
+  manageDailyHelpDeleteTitle: "दैनिक सहायक एंट्री डिलीट करें?",
+  manageDailyHelpDeleteMsg: "इसे वापस नहीं किया जा सकता।",
+  manageDailyHelpExistingList: "वर्तमान दैनिक सहायक एंट्री",
+  manageDailyHelpEmpty: "अभी दैनिक सहायक एंट्री नहीं है।",
+  manageDailyHelpEditShort: "ऐडिट",
+  manageDailyHelpDuplicateTitle: "डुप्लिकेट फोन",
+  manageDailyHelpDuplicateMsg:
+    "यह फोन नंबर पहले से दैनिक सहायक में मौजूद है।",
+  manageDailyHelpSaveFailedTitle: "दैनिक सहायक सेव नहीं हो सका",
 };
 
 const localized = {
