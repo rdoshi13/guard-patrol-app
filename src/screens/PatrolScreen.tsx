@@ -69,9 +69,9 @@ function localPatrolDate(d: Date): string {
 
 function isWithinPatrolWindow(d: Date): boolean {
   // Allowed only between 12:00 AM and 4:59 AM (end exclusive at 5:00)
-  // const h = d.getHours();
-  // return h >= 0 && h <= 4;
-  return true;
+  const h = d.getHours();
+  return h >= 0 && h <= 4;
+  // return true;
 }
 
 function makeWindowKey(d: Date, guardId: string): string {
@@ -160,17 +160,25 @@ async function loadMissedFinalizeMap(): Promise<MissedFinalizeMap> {
     const raw = await AsyncStorage.getItem(STORAGE_MISSED_FINALIZED_DATES);
     if (!raw) return {};
     const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === "object" ? (parsed as MissedFinalizeMap) : {};
+    return parsed && typeof parsed === "object"
+      ? (parsed as MissedFinalizeMap)
+      : {};
   } catch {
     return {};
   }
 }
 
 async function saveMissedFinalizeMap(map: MissedFinalizeMap): Promise<void> {
-  await AsyncStorage.setItem(STORAGE_MISSED_FINALIZED_DATES, JSON.stringify(map));
+  await AsyncStorage.setItem(
+    STORAGE_MISSED_FINALIZED_DATES,
+    JSON.stringify(map),
+  );
 }
 
-function shouldRunMissedFinalizationNow(now: Date, patrolDate: string): boolean {
+function shouldRunMissedFinalizationNow(
+  now: Date,
+  patrolDate: string,
+): boolean {
   if (localDateKey(now) !== patrolDate) return false;
   const h = now.getHours();
 

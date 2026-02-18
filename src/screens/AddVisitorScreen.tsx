@@ -12,6 +12,7 @@ import {
 import { AppButton } from "../components/AppButton";
 import * as ImagePicker from "expo-image-picker";
 import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   VisitType,
   VehicleType,
@@ -77,6 +78,7 @@ function normalizeImageUri(v?: string): string | undefined {
 export const AddVisitorScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<AddVisitorRoute>();
+  const insets = useSafeAreaInsets();
   const { session } = useSession();
   const { language } = useSettings();
   const canSave = !!session;
@@ -381,7 +383,10 @@ export const AddVisitorScreen: React.FC = () => {
   return (
     <ScrollView
       style={styles.container}
-      contentContainerStyle={{ paddingBottom: 40 }}
+      contentContainerStyle={[
+        styles.contentContainer,
+        { paddingBottom: Math.max(96, insets.bottom + 36) },
+      ]}
       keyboardShouldPersistTaps="handled"
     >
       {/* Type */}
@@ -569,6 +574,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 16,
+  },
+  contentContainer: {
+    paddingBottom: 40,
   },
   label: {
     fontSize: 15,
