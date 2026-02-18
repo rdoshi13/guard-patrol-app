@@ -241,6 +241,7 @@ export const VisitorsScreen: React.FC = () => {
       | "visitorsGardener"
       | "visitorsMilkman"
       | "visitorsPaperboy"
+      | "visitorsOther"
     > = {
       "Courier/Delivery": "visitorsCourier",
       Maid: "visitorsMaid",
@@ -249,6 +250,7 @@ export const VisitorsScreen: React.FC = () => {
       Guest: "visitorsGuest",
       Paperboy: "visitorsPaperboy",
       "Electrician/Plumber/Gardener": "visitorsGardener",
+      Other: "visitorsOther",
     };
     const key = map[type];
     return key ? t(language, key) : type;

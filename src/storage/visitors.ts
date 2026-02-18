@@ -1,6 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-export type VisitType =
+export type KnownVisitType =
   | "Courier/Delivery"
   | "Maid"
   | "Sweeper"
@@ -8,6 +8,8 @@ export type VisitType =
   | "Electrician/Plumber/Gardener"
   | "Milkman"
   | "Paperboy";
+
+export type VisitType = KnownVisitType | (string & {});
 
 export type VehicleType = "None" | "Car" | "Bike" | "Cycle";
 
@@ -70,7 +72,7 @@ export type VisitorSheetRow = {
 const VISITOR_PROFILES_KEY = "visitor_profiles_v1";
 const VISITOR_ENTRIES_KEY = "visitor_entries_v1";
 
-const VISIT_TYPES: VisitType[] = [
+const VISIT_TYPES: KnownVisitType[] = [
   "Courier/Delivery",
   "Maid",
   "Sweeper",
@@ -108,12 +110,13 @@ function createRecordId(prefix: string): string {
 function normalizeVisitType(v: unknown): VisitType {
   if (typeof v !== "string") return "Guest";
   const raw = v.trim();
-  if (VISIT_TYPES.includes(raw as VisitType)) {
-    return raw as VisitType;
+  if (!raw) return "Guest";
+  if (VISIT_TYPES.includes(raw as KnownVisitType)) {
+    return raw as KnownVisitType;
   }
 
   const key = raw.toLowerCase();
-  const aliases: Record<string, VisitType> = {
+  const aliases: Record<string, KnownVisitType> = {
     courier: "Courier/Delivery",
     delivery: "Courier/Delivery",
     maid: "Maid",
@@ -128,7 +131,7 @@ function normalizeVisitType(v: unknown): VisitType {
     "paper boy": "Paperboy",
   };
 
-  return aliases[key] ?? "Guest";
+  return aliases[key] ?? raw;
 }
 
 function normalizeVehicleType(v: unknown): VehicleType {
@@ -363,6 +366,7 @@ export async function upsertVisitorProfile(input: {
     updated = {
       ...existing,
       name: input.name.trim() || existing.name,
+      type: input.type,
       vehicle: input.vehicle,
       photoUri: incomingPhotoUri ?? existing.photoUri,
       wing: resolved.wing ?? existing.wing,

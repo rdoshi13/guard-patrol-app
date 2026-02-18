@@ -47,7 +47,26 @@ export const RootNavigator: React.FC = () => {
       <Stack.Screen
         name="AddVisitor"
         component={AddVisitorScreen}
-        options={{ title: "Add Visitor" }}
+        options={({ navigation }) => ({
+          title: "Add Visitor",
+          headerLeft: () => (
+            <TouchableOpacity
+              onPress={() => {
+                if (navigation.canGoBack()) {
+                  navigation.goBack();
+                  return;
+                }
+
+                navigation.navigate("MainTabs", { initialTab: "Visitors" });
+              }}
+              style={{ paddingHorizontal: 6, paddingVertical: 4 }}
+            >
+              <Text style={{ color: "#1976d2", fontSize: 16, fontWeight: "600" }}>
+                Back
+              </Text>
+            </TouchableOpacity>
+          ),
+        })}
       />
       <Stack.Screen
         name="AdminPin"

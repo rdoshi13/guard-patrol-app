@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
+  KnownVisitType,
   VisitType,
   VehicleType,
   VisitorProfile,
@@ -14,7 +15,7 @@ const DAILY_HELP_LEGACY_KEY = "daily_help_templates_v1";
 export const DAILY_HELP_DUPLICATE_PHONE_ERROR = "DAILY_HELP_DUPLICATE_PHONE";
 export const DAILY_HELP_NOT_FOUND_ERROR = "DAILY_HELP_NOT_FOUND";
 
-const VISIT_TYPES: VisitType[] = [
+const VISIT_TYPES: KnownVisitType[] = [
   "Courier/Delivery",
   "Maid",
   "Sweeper",
@@ -77,12 +78,12 @@ function normalizeVisitType(v: unknown): VisitType | null {
   const raw = v.trim();
   if (!raw) return null;
 
-  if (VISIT_TYPES.includes(raw as VisitType)) {
-    return raw as VisitType;
+  if (VISIT_TYPES.includes(raw as KnownVisitType)) {
+    return raw as KnownVisitType;
   }
 
   const key = raw.toLowerCase();
-  const aliases: Record<string, VisitType> = {
+  const aliases: Record<string, KnownVisitType> = {
     courier: "Courier/Delivery",
     "courier/delivery": "Courier/Delivery",
     delivery: "Courier/Delivery",
@@ -99,7 +100,7 @@ function normalizeVisitType(v: unknown): VisitType | null {
     "paper boy": "Paperboy",
   };
 
-  return aliases[key] ?? null;
+  return aliases[key] ?? raw;
 }
 
 function normalizeVehicleType(v: unknown): VehicleType {

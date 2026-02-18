@@ -128,6 +128,7 @@ const strings = {
     visitorsMilkman: "Milkman",
     visitorsGardener: "Gardener",
     visitorsSweeper: "Sweeper",
+    visitorsOther: "Other",
     visitorsFrequentTop10: "Frequent Visitors (Top 10)",
     visitorsRefresh: "Refresh",
     visitorsManageDailyHelp: "Manage Daily Help",
@@ -147,6 +148,8 @@ const strings = {
 
     // Add Visitor
     addVisitorTypeLabel: "Type of visit",
+    addVisitorCustomTypeLabel: "Visit type (Other)",
+    addVisitorCustomTypePlaceholder: "Enter visit type",
     addVisitorNameLabel: "Name",
     addVisitorNamePlaceholder: "Enter name",
     addVisitorPhoneLabel: "Phone number",
@@ -168,6 +171,7 @@ const strings = {
     addVisitorCameraPermission: "Camera permission is required.",
     addVisitorValidationName: "Name is required",
     addVisitorValidationPhone: "Valid phone number is required",
+    addVisitorValidationCustomType: "Visit type is required",
     addVisitorStartShiftTitle: "Start shift",
     addVisitorStartShiftMsg: "Start a shift before adding visitors.",
     addVisitorMissingInfoTitle: "Missing info",
@@ -354,6 +358,7 @@ const strings = {
     visitorsMilkman: "દૂધવાળો",
     visitorsGardener: "માળી",
     visitorsSweeper: "સફાઈકર્મી",
+    visitorsOther: "અન્ય",
     visitorsFrequentTop10: "વારંવાર આવતા મહેમાનો (ટોપ 10)",
     visitorsRefresh: "રીફ્રેશ",
     visitorsManageDailyHelp: "દૈનિક મદદ મેનેજ કરો",
@@ -372,6 +377,8 @@ const strings = {
 
     // Add Visitor
     addVisitorTypeLabel: "મુલાકાતનો પ્રકાર",
+    addVisitorCustomTypeLabel: "મુલાકાતનો પ્રકાર (અન્ય)",
+    addVisitorCustomTypePlaceholder: "મુલાકાતનો પ્રકાર લખો",
     addVisitorNameLabel: "નામ",
     addVisitorNamePlaceholder: "નામ દાખલ કરો",
     addVisitorPhoneLabel: "ફોન નંબર",
@@ -393,6 +400,7 @@ const strings = {
     addVisitorCameraPermission: "કેમેરા પરમિશન જરૂરી છે.",
     addVisitorValidationName: "નામ જરૂરી છે",
     addVisitorValidationPhone: "માન્ય ફોન નંબર જરૂરી છે",
+    addVisitorValidationCustomType: "મુલાકાતનો પ્રકાર જરૂરી છે",
     addVisitorStartShiftTitle: "શિફ્ટ શરૂ કરો",
     addVisitorStartShiftMsg: "મહેમાન ઉમેરતા પહેલાં શિફ્ટ શરૂ કરો.",
     addVisitorMissingInfoTitle: "માહિતી અધૂરી છે",
@@ -582,6 +590,7 @@ const hi: typeof strings.en = {
   visitorsMilkman: "दूधवाला",
   visitorsGardener: "माली",
   visitorsSweeper: "सफाईकर्मी",
+  visitorsOther: "अन्य",
   visitorsFrequentTop10: "अक्सर आने वाले मुलाक़ाती (टॉप 10)",
   visitorsRefresh: "रिफ्रेश",
   visitorsManageDailyHelp: "दैनिक सहायक मैनेज करें",
@@ -602,6 +611,8 @@ const hi: typeof strings.en = {
 
   // Add Visitor
   addVisitorTypeLabel: "मुलाक़ाती का प्रकार",
+  addVisitorCustomTypeLabel: "मुलाक़ाती का प्रकार (अन्य)",
+  addVisitorCustomTypePlaceholder: "मुलाक़ाती का प्रकार लिखें",
   addVisitorNameLabel: "नाम",
   addVisitorNamePlaceholder: "नाम दर्ज करें",
   addVisitorPhoneLabel: "फोन नंबर",
@@ -623,6 +634,7 @@ const hi: typeof strings.en = {
   addVisitorCameraPermission: "कैमरा अनुमति आवश्यक है।",
   addVisitorValidationName: "नाम आवश्यक है",
   addVisitorValidationPhone: "मान्य फोन नंबर आवश्यक है",
+  addVisitorValidationCustomType: "मुलाक़ाती का प्रकार आवश्यक है",
   addVisitorStartShiftTitle: "शिफ्ट शुरू करें",
   addVisitorStartShiftMsg: "मुलाक़ाती जोड़ने से पहले शिफ्ट शुरू करें।",
   addVisitorMissingInfoTitle: "जानकारी अधूरी है",

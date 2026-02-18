@@ -157,9 +157,9 @@ export const ManageDailyHelpScreen: React.FC = () => {
       .slice(0, 20);
   }, [profiles, query]);
 
-  const visitTypeLabel = (type: VisitType): string => {
+  const visitTypeLabel = (type: string): string => {
     const keyMap: Record<
-      VisitType,
+      string,
       | "visitorsCourier"
       | "visitorsMaid"
       | "visitorsSweeper"
@@ -167,6 +167,7 @@ export const ManageDailyHelpScreen: React.FC = () => {
       | "visitorsGardener"
       | "visitorsMilkman"
       | "visitorsPaperboy"
+      | "visitorsOther"
     > = {
       "Courier/Delivery": "visitorsCourier",
       Maid: "visitorsMaid",
@@ -175,9 +176,11 @@ export const ManageDailyHelpScreen: React.FC = () => {
       "Electrician/Plumber/Gardener": "visitorsGardener",
       Milkman: "visitorsMilkman",
       Paperboy: "visitorsPaperboy",
+      Other: "visitorsOther",
     };
 
-    return t(language, keyMap[type]);
+    const key = keyMap[type];
+    return key ? t(language, key) : type;
   };
 
   const wingLabel = (wing: VisitorWing): string => {

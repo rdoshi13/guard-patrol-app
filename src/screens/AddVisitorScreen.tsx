@@ -14,6 +14,7 @@ import * as ImagePicker from "expo-image-picker";
 import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
+  KnownVisitType,
   VisitType,
   VehicleType,
   VisitorProfile,
@@ -28,7 +29,7 @@ import { useSession } from "../context/SessionContext";
 import { useSettings } from "../context/SettingsContext";
 import { t } from "../i18n/strings";
 
-const VISIT_TYPES: VisitType[] = [
+const VISIT_TYPES: KnownVisitType[] = [
   "Courier/Delivery",
   "Maid",
   "Sweeper",
@@ -37,6 +38,8 @@ const VISIT_TYPES: VisitType[] = [
   "Milkman",
   "Paperboy",
 ];
+const VISIT_TYPE_OPTIONS = [...VISIT_TYPES, "Other"] as const;
+type VisitTypeOption = (typeof VISIT_TYPE_OPTIONS)[number];
 
 const WINGS = ["A", "B", "C", "D", "ROSEDALE"] as const;
 
@@ -85,7 +88,9 @@ export const AddVisitorScreen: React.FC = () => {
 
   const [allProfiles, setAllProfiles] = useState<VisitorProfile[]>([]);
 
-  const [type, setType] = useState<VisitType>("Guest");
+  const [selectedTypeOption, setSelectedTypeOption] =
+    useState<VisitTypeOption>("Guest");
+  const [customType, setCustomType] = useState("");
   const [wing, setWing] = useState<Wing>(DEFAULT_WING);
   const [flatNumber, setFlatNumber] = useState<string>(DEFAULT_FLAT);
   const [name, setName] = useState("");
@@ -110,11 +115,37 @@ export const AddVisitorScreen: React.FC = () => {
 
   const isSocietyWide = wing === "ROSEDALE";
   const savedFlatNumber = isSocietyWide ? "000" : flatNumber;
+  const resolvedType: VisitType =
+    selectedTypeOption === "Other" ? customType.trim() : selectedTypeOption;
 
   const resolveWing = (input: unknown): Wing | null => {
     if (typeof input !== "string") return null;
     const normalized = input.trim().toUpperCase();
     return WINGS.includes(normalized as Wing) ? (normalized as Wing) : null;
+  };
+
+  const applyTypeValue = (value: unknown) => {
+    if (typeof value !== "string") {
+      setSelectedTypeOption("Guest");
+      setCustomType("");
+      return;
+    }
+
+    const trimmed = value.trim();
+    if (!trimmed) {
+      setSelectedTypeOption("Guest");
+      setCustomType("");
+      return;
+    }
+
+    if (VISIT_TYPES.includes(trimmed as KnownVisitType)) {
+      setSelectedTypeOption(trimmed as KnownVisitType);
+      setCustomType("");
+      return;
+    }
+
+    setSelectedTypeOption("Other");
+    setCustomType(trimmed);
   };
 
   useEffect(() => {
@@ -124,9 +155,7 @@ export const AddVisitorScreen: React.FC = () => {
     if (typeof prefill.name === "string") setName(prefill.name);
     if (typeof prefill.phone === "string") setPhone(prefill.phone);
 
-    if (prefill.type && VISIT_TYPES.includes(prefill.type)) {
-      setType(prefill.type);
-    }
+    applyTypeValue(prefill.type);
 
     if (prefill.vehicle && VEHICLE_TYPES.includes(prefill.vehicle)) {
       setVehicle(prefill.vehicle);
@@ -209,7 +238,7 @@ export const AddVisitorScreen: React.FC = () => {
     setPhone(p.phone);
     setVehicle(p.vehicle);
     setPhotoUri(normalizeImageUri(p.photoUri));
-    setType(p.type);
+    applyTypeValue(p.type);
     const parsedLegacy = parseLegacyFlat(p.flat);
     const w = p.wing ?? parsedLegacy.wing;
     const f = p.flatNumber ?? parsedLegacy.flatNumber;
@@ -231,7 +260,11 @@ export const AddVisitorScreen: React.FC = () => {
   const validate = () => {
     const n = name.trim();
     const ph = phone.replace(/\D/g, "");
+    const custom = customType.trim();
 
+    if (selectedTypeOption === "Other" && !custom) {
+      return t(language, "addVisitorValidationCustomType");
+    }
     if (!n) return t(language, "addVisitorValidationName");
     if (ph.length < 8) return t(language, "addVisitorValidationPhone");
 
@@ -259,7 +292,7 @@ export const AddVisitorScreen: React.FC = () => {
       const profile = await upsertVisitorProfile({
         name: name.trim(),
         phone: ph,
-        type,
+        type: resolvedType,
         vehicle,
         wing,
         flatNumber: savedFlatNumber,
@@ -273,7 +306,7 @@ export const AddVisitorScreen: React.FC = () => {
         visitorId: profile?.id,
         name: name.trim(),
         phone: ph,
-        type,
+        type: resolvedType,
         vehicle,
         wing,
         flatNumber: savedFlatNumber,
@@ -290,9 +323,9 @@ export const AddVisitorScreen: React.FC = () => {
     }
   };
 
-  const visitTypeLabel = (type: VisitType) => {
+  const visitTypeLabel = (type: string) => {
     const keyMap: Record<
-      VisitType,
+      string,
       | "visitorsCourier"
       | "visitorsMaid"
       | "visitorsSweeper"
@@ -300,6 +333,7 @@ export const AddVisitorScreen: React.FC = () => {
       | "visitorsGardener"
       | "visitorsMilkman"
       | "visitorsPaperboy"
+      | "visitorsOther"
     > = {
       "Courier/Delivery": "visitorsCourier",
       Maid: "visitorsMaid",
@@ -308,8 +342,10 @@ export const AddVisitorScreen: React.FC = () => {
       Guest: "visitorsGuest",
       Paperboy: "visitorsPaperboy",
       "Electrician/Plumber/Gardener": "visitorsGardener",
+      Other: "visitorsOther",
     };
-    return t(language, keyMap[type]);
+    const key = keyMap[type];
+    return key ? t(language, key) : type;
   };
 
   const vehicleLabel = (vehicleType: VehicleType) => {
@@ -392,14 +428,14 @@ export const AddVisitorScreen: React.FC = () => {
       {/* Type */}
       <Text style={styles.label}>{t(language, "addVisitorTypeLabel")}</Text>
       <View style={styles.pillsRow}>
-        {VISIT_TYPES.map((vt) => {
-          const selected = vt === type;
+        {VISIT_TYPE_OPTIONS.map((vt) => {
+          const selected = vt === selectedTypeOption;
 
           return (
             <TouchableOpacity
               key={vt}
               style={[styles.pill, selected && styles.pillSelected]}
-              onPress={() => setType(vt)}
+              onPress={() => setSelectedTypeOption(vt)}
               activeOpacity={0.8}
             >
               <Text style={styles.pillText}>{visitTypeLabel(vt)}</Text>
@@ -407,6 +443,18 @@ export const AddVisitorScreen: React.FC = () => {
           );
         })}
       </View>
+
+      {selectedTypeOption === "Other" && (
+        <>
+          <Text style={styles.label}>{t(language, "addVisitorCustomTypeLabel")}</Text>
+          <TextInput
+            value={customType}
+            onChangeText={setCustomType}
+            placeholder={t(language, "addVisitorCustomTypePlaceholder")}
+            style={styles.input}
+          />
+        </>
+      )}
 
       {/* Name + suggestions */}
       <Text style={styles.label}>{t(language, "addVisitorNameLabel")}</Text>
