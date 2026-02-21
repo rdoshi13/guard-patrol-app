@@ -12,9 +12,9 @@ const GUARDS_KEY = "guards";
 
 // default guards for your society – you can change these later
 const DEFAULT_GUARDS: Guard[] = [
-  { id: "g_ramesh", name: "Ramesh", phone: "9000000001" },
-  { id: "g_suresh", name: "Suresh", phone: "9000000002" },
-  { id: "g_mahesh", name: "Mahesh", phone: "9000000003" },
+  { id: "g_1", name: "Guard 1", phone: "9000000001" },
+  { id: "g_2", name: "Guard 2", phone: "9000000002" },
+  { id: "g_3", name: "Guard 3", phone: "9000000003" },
 ];
 
 function normalizePhotoUri(v: unknown): string | undefined {
@@ -95,7 +95,7 @@ export async function saveGuards(guards: Guard[]): Promise<void> {
 export function createGuard(
   name: string,
   phone: string,
-  photoUri?: string
+  photoUri?: string,
 ): Guard {
   const id = `g_${Date.now()}_${Math.floor(Math.random() * 100000)}`;
   return { id, name, phone, photoUri: normalizePhotoUri(photoUri) };

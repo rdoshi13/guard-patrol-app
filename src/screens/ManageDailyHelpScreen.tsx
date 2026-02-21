@@ -27,6 +27,7 @@ import {
   updateDailyHelpTemplate,
 } from "../storage/dailyHelp";
 import {
+  KnownVisitType,
   VisitType,
   VehicleType,
   VisitorProfile,
@@ -34,7 +35,7 @@ import {
   loadVisitorProfiles,
 } from "../storage/visitors";
 
-const VISIT_TYPES: VisitType[] = [
+const VISIT_TYPES: KnownVisitType[] = [
   "Courier/Delivery",
   "Maid",
   "Sweeper",
@@ -43,6 +44,8 @@ const VISIT_TYPES: VisitType[] = [
   "Milkman",
   "Paperboy",
 ];
+const VISIT_TYPE_OPTIONS = [...VISIT_TYPES, "Other"] as const;
+type VisitTypeOption = (typeof VISIT_TYPE_OPTIONS)[number];
 
 const VEHICLE_TYPES: VehicleType[] = ["None", "Car", "Bike", "Cycle"];
 const WINGS: VisitorWing[] = ["A", "B", "C", "D", "ROSEDALE"];
@@ -64,7 +67,8 @@ const FLATS_IN_WING = [
 type FormState = {
   name: string;
   phone: string;
-  type: VisitType;
+  type: VisitTypeOption;
+  customType: string;
   vehicle: VehicleType;
   wing: VisitorWing;
   flatNumber: string;
@@ -75,6 +79,7 @@ const EMPTY_FORM: FormState = {
   name: "",
   phone: "",
   type: "Guest",
+  customType: "",
   vehicle: "None",
   wing: "A",
   flatNumber: "101",
@@ -219,11 +224,13 @@ export const ManageDailyHelpScreen: React.FC = () => {
   };
 
   const startEdit = (item: DailyHelpTemplate) => {
+    const isKnownType = VISIT_TYPES.includes(item.type as KnownVisitType);
     setEditingId(item.id);
     setForm({
       name: item.name,
       phone: item.phone,
-      type: item.type,
+      type: isKnownType ? (item.type as KnownVisitType) : "Other",
+      customType: isKnownType ? "" : item.type,
       vehicle: item.vehicle,
       wing: item.wing,
       flatNumber: item.flatNumber,
@@ -249,11 +256,13 @@ export const ManageDailyHelpScreen: React.FC = () => {
       return;
     }
 
+    const isKnownType = VISIT_TYPES.includes(input.type as KnownVisitType);
     setEditingId(null);
     setForm({
       name: input.name,
       phone: input.phone,
-      type: input.type,
+      type: isKnownType ? (input.type as KnownVisitType) : "Other",
+      customType: isKnownType ? "" : input.type,
       vehicle: input.vehicle,
       wing: input.wing,
       flatNumber: input.flatNumber,
@@ -352,10 +361,18 @@ export const ManageDailyHelpScreen: React.FC = () => {
       return;
     }
 
+    if (form.type === "Other" && !form.customType.trim()) {
+      Alert.alert(
+        t(language, "addVisitorMissingInfoTitle"),
+        t(language, "addVisitorValidationCustomType"),
+      );
+      return;
+    }
+
     const payload: DailyHelpTemplateInput = {
       name: form.name.trim(),
       phone: digitsOnly(form.phone),
-      type: form.type,
+      type: resolvedType,
       vehicle: form.vehicle,
       wing: form.wing,
       flatNumber: form.wing === "ROSEDALE" ? "000" : form.flatNumber,
@@ -447,6 +464,8 @@ export const ManageDailyHelpScreen: React.FC = () => {
   const selectedPhotoUri = normalizeImageUri(form.photoUrl);
   const selectedPhotoInitial =
     String(form.name ?? "").trim().charAt(0).toUpperCase() || "?";
+  const resolvedType: VisitType =
+    form.type === "Other" ? form.customType.trim() : form.type;
 
   return (
     <ScrollView
@@ -524,16 +543,39 @@ export const ManageDailyHelpScreen: React.FC = () => {
 
         <Text style={styles.fieldLabel}>{t(language, "addVisitorTypeLabel")}</Text>
         <View style={styles.pillsRow}>
-          {VISIT_TYPES.map((item) => (
+          {VISIT_TYPE_OPTIONS.map((item) => (
             <TouchableOpacity
               key={item}
               style={[styles.pill, form.type === item && styles.pillSelected]}
-              onPress={() => setForm((prev) => ({ ...prev, type: item }))}
+              onPress={() =>
+                setForm((prev) => ({
+                  ...prev,
+                  type: item,
+                  customType: item === "Other" ? prev.customType : "",
+                }))
+              }
             >
               <Text style={styles.pillText}>{visitTypeLabel(item)}</Text>
             </TouchableOpacity>
           ))}
         </View>
+
+        {form.type === "Other" ? (
+          <>
+            <Text style={styles.fieldLabel}>{t(language, "addVisitorCustomTypeLabel")}</Text>
+            <TextInput
+              value={form.customType}
+              onChangeText={(value) =>
+                setForm((prev) => ({
+                  ...prev,
+                  customType: value,
+                }))
+              }
+              placeholder={t(language, "addVisitorCustomTypePlaceholder")}
+              style={styles.input}
+            />
+          </>
+        ) : null}
 
         <Text style={styles.fieldLabel}>{t(language, "addVisitorWingLabel")}</Text>
         <View style={styles.pillsRow}>

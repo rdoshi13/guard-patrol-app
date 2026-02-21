@@ -37,6 +37,9 @@ const strings = {
     settingsAdminTitle: "Admin",
     settingsManageGuards: "Manage Guards",
     settingsManageDailyHelp: "Manage Daily Help",
+    settingsExportReadableDataButton: "Export Readable Data (CSV)",
+    settingsExportReadableDataTitle: "Readable Data Export (CSV)",
+    settingsExportReadableDataFailed: "Could not export readable data",
     settingsExportLocalDataButton: "Export Local Data",
     settingsExportLocalDataTitle: "Local Data Export",
     settingsExportLocalDataFailed: "Could not export local data",
@@ -65,7 +68,7 @@ const strings = {
     cameraErrorTitle: "Camera error",
     galleryOpenFailMsg: "Could not open gallery.",
     cameraOpenFailMsg: "Could not open camera.",
-    guardNamePlaceholder: "Ramesh",
+    guardNamePlaceholder: "Guard name",
     guardPhonePlaceholder: "9876543210",
 
     // Patrol
@@ -136,8 +139,7 @@ const strings = {
     visitorsSyncFailed: "Visitor sync failed",
     visitorsSyncVisitorRecordsLabel: "Visitor records",
     visitorsSyncNoPending: "No pending visitor records to sync.",
-    visitorsDailyHelpEmpty:
-      "No Daily Help entries yet. Tap Manage Daily Help.",
+    visitorsDailyHelpEmpty: "No Daily Help entries yet. Tap Manage Daily Help.",
     visitorsAttempted: "Attempted",
     visitorsSynced: "Synced",
     visitorsSkipped: "Skipped",
@@ -231,8 +233,7 @@ const strings = {
     manageDailyHelpEmpty: "No Daily Help entries yet.",
     manageDailyHelpEditShort: "Edit",
     manageDailyHelpDuplicateTitle: "Duplicate phone",
-    manageDailyHelpDuplicateMsg:
-      "This phone number is already in Daily Help.",
+    manageDailyHelpDuplicateMsg: "This phone number is already in Daily Help.",
     manageDailyHelpSaveFailedTitle: "Could not save Daily Help",
   },
   gu: {
@@ -269,6 +270,11 @@ const strings = {
     settingsAdminTitle: "એડમિન",
     settingsManageGuards: "ગાર્ડ મેનેજ કરો",
     settingsManageDailyHelp: "દૈનિક મદદ મેનેજ કરો",
+    settingsExportReadableDataButton:
+      "વાંચી શકાય તેવો ડેટા એક્સપોર્ટ કરો (CSV)",
+    settingsExportReadableDataTitle: "વાંચી શકાય તેવો ડેટા એક્સપોર્ટ (CSV)",
+    settingsExportReadableDataFailed:
+      "વાંચી શકાય તેવો ડેટા એક્સપોર્ટ થઈ શક્યો નથી",
     settingsExportLocalDataButton: "લોકલ ડેટા એક્સપોર્ટ કરો",
     settingsExportLocalDataTitle: "લોકલ ડેટા એક્સપોર્ટ",
     settingsExportLocalDataFailed: "લોકલ ડેટા એક્સપોર્ટ થઈ શક્યો નથી",
@@ -459,8 +465,7 @@ const strings = {
     manageDailyHelpEmpty: "હજુ દૈનિક મદદમાં કોઈ એન્ટ્રી નથી.",
     manageDailyHelpEditShort: "એડિટ",
     manageDailyHelpDuplicateTitle: "ડુપ્લિકેટ ફોન",
-    manageDailyHelpDuplicateMsg:
-      "આ ફોન નંબર પહેલેથી જ દૈનિક મદદમાં છે.",
+    manageDailyHelpDuplicateMsg: "આ ફોન નંબર પહેલેથી જ દૈનિક મદદમાં છે.",
     manageDailyHelpSaveFailedTitle: "દૈનિક મદદ સેવ થઈ નથી",
   },
 };
@@ -501,6 +506,9 @@ const hi: typeof strings.en = {
   settingsAdminTitle: "एडमिन",
   settingsManageGuards: "गार्ड मैनेज करें",
   settingsManageDailyHelp: "दैनिक सहायक मैनेज करें",
+  settingsExportReadableDataButton: "रीडेबल डेटा एक्सपोर्ट करें (CSV)",
+  settingsExportReadableDataTitle: "रीडेबल डेटा एक्सपोर्ट (CSV)",
+  settingsExportReadableDataFailed: "रीडेबल डेटा एक्सपोर्ट नहीं हो सका",
   settingsExportLocalDataButton: "लोकल डेटा एक्सपोर्ट करें",
   settingsExportLocalDataTitle: "लोकल डेटा एक्सपोर्ट",
   settingsExportLocalDataFailed: "लोकल डेटा एक्सपोर्ट नहीं हो सका",
@@ -694,8 +702,7 @@ const hi: typeof strings.en = {
   manageDailyHelpEmpty: "अभी दैनिक सहायक एंट्री नहीं है।",
   manageDailyHelpEditShort: "ऐडिट",
   manageDailyHelpDuplicateTitle: "डुप्लिकेट फोन",
-  manageDailyHelpDuplicateMsg:
-    "यह फोन नंबर पहले से दैनिक सहायक में मौजूद है।",
+  manageDailyHelpDuplicateMsg: "यह फोन नंबर पहले से दैनिक सहायक में मौजूद है।",
   manageDailyHelpSaveFailedTitle: "दैनिक सहायक सेव नहीं हो सका",
 };
 
