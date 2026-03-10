@@ -239,6 +239,7 @@ function handleVisitors_(body) {
     "wing",
     "flatNumber",
     "event",
+    "flats",
   ]);
 
   const header = sh
@@ -286,6 +287,7 @@ function handleVisitors_(body) {
       r.wing || "",
       r.flatNumber || "",
       r.event || "",
+      r.flats || "",
     ]);
 
     existingIds.add(rid);

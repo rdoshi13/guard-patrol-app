@@ -15,8 +15,9 @@ export type AddVisitorPrefill = {
   phone?: string;
   type?: VisitType;
   vehicle?: VehicleType;
-  wing?: VisitorWing;
-  flatNumber?: string;
+  flats?: string[];      // multi-flat list e.g. ["A-101", "B-202"]
+  wing?: VisitorWing;    // backward compat: used when flats is absent
+  flatNumber?: string;   // backward compat: used when flats is absent
   photoUri?: string;
 };
 

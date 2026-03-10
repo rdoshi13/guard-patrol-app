@@ -7,6 +7,7 @@ import {
   VisitorWing,
   loadVisitorProfiles,
   parseLegacyFlat,
+  parseFlatString,
 } from "./visitors";
 
 const DAILY_HELP_LOCAL_KEY = "daily_help_local_v2";
@@ -34,8 +35,9 @@ export type DailyHelpTemplate = {
   phone: string;
   type: VisitType;
   vehicle: VehicleType;
-  wing: VisitorWing;
-  flatNumber: string;
+  flats?: string[];      // multi-flat list e.g. ["A-101", "B-202"] or ["ROSEDALE"]
+  wing: VisitorWing;     // backward compat: derived from first flat
+  flatNumber: string;    // backward compat: derived from first flat
   photoUrl?: string;
   displayOrder: number;
 };
@@ -45,8 +47,9 @@ export type DailyHelpTemplateInput = {
   phone: string;
   type: VisitType;
   vehicle: VehicleType;
-  wing: VisitorWing;
-  flatNumber: string;
+  flats?: string[];      // multi-flat list (authoritative when provided)
+  wing: VisitorWing;     // backward compat: used when flats is absent
+  flatNumber: string;    // backward compat: used when flats is absent
   photoUrl?: string;
   displayOrder?: number;
 };
@@ -120,6 +123,15 @@ function normalizeFlatNumber(v: unknown): string {
   return String(v).replace(/\D/g, "");
 }
 
+function normalizeFlatsList(v: unknown): string[] | undefined {
+  if (!Array.isArray(v)) return undefined;
+  const result: string[] = [];
+  for (const item of v) {
+    if (typeof item === "string" && item.trim()) result.push(item.trim());
+  }
+  return result.length > 0 ? result : undefined;
+}
+
 function parseDisplayOrder(v: unknown, fallback: number): number {
   if (typeof v === "number" && Number.isFinite(v)) return v;
   if (typeof v === "string") {
@@ -143,13 +155,29 @@ function normalizeTemplateFromRaw(
   const name = String(obj.name ?? "").trim();
   const phone = digitsOnly(String(obj.phone ?? ""));
   const type = normalizeVisitType(obj.type);
-  const wing = normalizeWing(obj.wing);
 
-  if (!name || phone.length < 8 || !type || !wing) return null;
+  if (!name || phone.length < 8 || !type) return null;
 
-  const flatNumberRaw = normalizeFlatNumber(obj.flatNumber);
-  const flatNumber = wing === "ROSEDALE" ? "000" : flatNumberRaw;
-  if (wing !== "ROSEDALE" && !flatNumber) return null;
+  // Resolve flats: use flats array if present, else derive from wing/flatNumber
+  const rawFlats = normalizeFlatsList(obj.flats);
+  let wing: VisitorWing | null;
+  let flatNumber: string;
+  let flats: string[] | undefined;
+
+  if (rawFlats && rawFlats.length > 0) {
+    flats = rawFlats;
+    const first = parseFlatString(rawFlats[0]);
+    wing = (first.wing as VisitorWing) ?? null;
+    flatNumber = first.wing === "ROSEDALE" ? "000" : (first.flatNumber ?? "");
+  } else {
+    wing = normalizeWing(obj.wing);
+    if (!wing) return null;
+    flatNumber = wing === "ROSEDALE" ? "000" : normalizeFlatNumber(obj.flatNumber);
+    if (wing !== "ROSEDALE" && !flatNumber) return null;
+    flats = undefined;
+  }
+
+  if (!wing) return null;
 
   return {
     id:
@@ -160,6 +188,7 @@ function normalizeTemplateFromRaw(
     phone,
     type,
     vehicle: normalizeVehicleType(obj.vehicle),
+    flats,
     wing,
     flatNumber,
     photoUrl: normalizePhotoUrl(obj.photoUrl),
@@ -275,32 +304,39 @@ function normalizeInput(input: DailyHelpTemplateInput): Omit<DailyHelpTemplate, 
   const name = String(input.name ?? "").trim();
   const phone = digitsOnly(String(input.phone ?? ""));
   const type = normalizeVisitType(input.type);
-  const wing = normalizeWing(input.wing);
 
-  if (!name) {
-    throw new Error("DAILY_HELP_NAME_REQUIRED");
-  }
-  if (phone.length < 8) {
-    throw new Error("DAILY_HELP_PHONE_INVALID");
-  }
-  if (!type) {
-    throw new Error("DAILY_HELP_TYPE_INVALID");
-  }
-  if (!wing) {
-    throw new Error("DAILY_HELP_WING_INVALID");
+  if (!name) throw new Error("DAILY_HELP_NAME_REQUIRED");
+  if (phone.length < 8) throw new Error("DAILY_HELP_PHONE_INVALID");
+  if (!type) throw new Error("DAILY_HELP_TYPE_INVALID");
+
+  // Resolve flats: use input.flats if provided, else use wing/flatNumber
+  const inputFlats = input.flats && input.flats.length > 0 ? input.flats : undefined;
+  let wing: VisitorWing | null;
+  let flatNumber: string;
+  let flats: string[] | undefined;
+
+  if (inputFlats) {
+    flats = inputFlats;
+    const first = parseFlatString(inputFlats[0]);
+    wing = (first.wing as VisitorWing) ?? null;
+    flatNumber = first.wing === "ROSEDALE" ? "000" : (first.flatNumber ?? "");
+  } else {
+    wing = normalizeWing(input.wing);
+    if (!wing) throw new Error("DAILY_HELP_WING_INVALID");
+    const flatRaw = normalizeFlatNumber(input.flatNumber);
+    flatNumber = wing === "ROSEDALE" ? "000" : flatRaw;
+    if (wing !== "ROSEDALE" && !flatNumber) throw new Error("DAILY_HELP_FLAT_REQUIRED");
+    flats = undefined;
   }
 
-  const flatRaw = normalizeFlatNumber(input.flatNumber);
-  const flatNumber = wing === "ROSEDALE" ? "000" : flatRaw;
-  if (wing !== "ROSEDALE" && !flatNumber) {
-    throw new Error("DAILY_HELP_FLAT_REQUIRED");
-  }
+  if (!wing) throw new Error("DAILY_HELP_WING_INVALID");
 
   return {
     name,
     phone,
     type,
     vehicle: normalizeVehicleType(input.vehicle),
+    flats,
     wing,
     flatNumber,
     photoUrl: normalizePhotoUrl(input.photoUrl),
@@ -351,9 +387,7 @@ export async function createDailyHelpTemplate(
 
   await writeTemplates(next);
   const created = next.find((item) => item.id === createdId);
-  if (!created) {
-    throw new Error(DAILY_HELP_NOT_FOUND_ERROR);
-  }
+  if (!created) throw new Error(DAILY_HELP_NOT_FOUND_ERROR);
   return created;
 }
 
@@ -365,15 +399,14 @@ export async function updateDailyHelpTemplate(
   const templates = await readTemplates();
   const existing = templates.find((item) => item.id === id);
 
-  if (!existing) {
-    throw new Error(DAILY_HELP_NOT_FOUND_ERROR);
-  }
+  if (!existing) throw new Error(DAILY_HELP_NOT_FOUND_ERROR);
 
   const merged: DailyHelpTemplateInput = {
     name: patch.name ?? existing.name,
     phone: patch.phone ?? existing.phone,
     type: patch.type ?? existing.type,
     vehicle: patch.vehicle ?? existing.vehicle,
+    flats: patch.flats !== undefined ? patch.flats : existing.flats,
     wing: patch.wing ?? existing.wing,
     flatNumber: patch.flatNumber ?? existing.flatNumber,
     photoUrl: patch.photoUrl ?? existing.photoUrl,
@@ -400,10 +433,7 @@ export async function updateDailyHelpTemplate(
 
   await writeTemplates(next);
   const updated = next.find((item) => item.id === id);
-  if (!updated) {
-    throw new Error(DAILY_HELP_NOT_FOUND_ERROR);
-  }
-
+  if (!updated) throw new Error(DAILY_HELP_NOT_FOUND_ERROR);
   return updated;
 }
 
@@ -451,6 +481,23 @@ export function dailyHelpInputFromProfile(
 ): DailyHelpTemplateInput | null {
   if (!profile || !profile.name || !profile.phone) return null;
 
+  // Use profile's flats array if available (multi-flat support)
+  if (profile.flats && profile.flats.length > 0) {
+    const first = parseFlatString(profile.flats[0]);
+    if (!first.wing) return null;
+    return {
+      name: profile.name,
+      phone: profile.phone,
+      type: profile.type,
+      vehicle: profile.vehicle,
+      flats: profile.flats,
+      wing: first.wing,
+      flatNumber: first.wing === "ROSEDALE" ? "000" : (first.flatNumber ?? ""),
+      photoUrl: normalizePhotoUrl(profile.photoUri),
+    };
+  }
+
+  // Fall back to legacy wing/flatNumber
   const parsedLegacy = parseLegacyFlat(profile.flat);
   const wing = profile.wing ?? parsedLegacy.wing;
   const flatNumber = profile.flatNumber ?? parsedLegacy.flatNumber;
@@ -472,14 +519,10 @@ export async function addDailyHelpFromVisitorProfile(
 ): Promise<DailyHelpTemplate> {
   const profiles = await loadVisitorProfiles();
   const profile = profiles.find((item) => item.id === profileId);
-  if (!profile) {
-    throw new Error("DAILY_HELP_PROFILE_NOT_FOUND");
-  }
+  if (!profile) throw new Error("DAILY_HELP_PROFILE_NOT_FOUND");
 
   const input = dailyHelpInputFromProfile(profile);
-  if (!input) {
-    throw new Error("DAILY_HELP_PROFILE_INVALID");
-  }
+  if (!input) throw new Error("DAILY_HELP_PROFILE_INVALID");
 
   return createDailyHelpTemplate(input);
 }

@@ -263,6 +263,7 @@ export const VisitorsScreen: React.FC = () => {
         phone: item.phone,
         type: item.type,
         vehicle: item.vehicle,
+        flats: item.flats,
         wing: item.wing,
         flatNumber: item.flatNumber,
         photoUri: item.resolvedPhotoUri,

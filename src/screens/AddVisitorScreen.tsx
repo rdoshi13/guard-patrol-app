@@ -23,6 +23,7 @@ import {
   upsertVisitorProfile,
   addVisitorEntry,
   parseLegacyFlat,
+  parseFlatString,
 } from "../storage/visitors";
 import { RootStackParamList } from "../navigation/RootNavigator";
 import { useSession } from "../context/SessionContext";
@@ -91,19 +92,26 @@ export const AddVisitorScreen: React.FC = () => {
   const [selectedTypeOption, setSelectedTypeOption] =
     useState<VisitTypeOption>("Guest");
   const [customType, setCustomType] = useState("");
-  const [wing, setWing] = useState<Wing>(DEFAULT_WING);
-  const [flatNumber, setFlatNumber] = useState<string>(DEFAULT_FLAT);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
-
   const [vehicle, setVehicle] = useState<VehicleType>("None");
   const [photoUri, setPhotoUri] = useState<string | undefined>(undefined);
+
+  // Multi-flat state: activeWing controls which wing's flat pills are shown;
+  // selectedFlats holds the actual selection across all wings.
+  const [activeWing, setActiveWing] = useState<Wing>(DEFAULT_WING);
+  const [selectedFlats, setSelectedFlats] = useState<string[]>([
+    `${DEFAULT_WING}-${DEFAULT_FLAT}`,
+  ]);
 
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [brokenSuggestionImages, setBrokenSuggestionImages] = useState<
     Record<string, boolean>
   >({});
   const [isSelectedPhotoBroken, setIsSelectedPhotoBroken] = useState(false);
+
+  const isSocietyWide =
+    selectedFlats.length === 1 && selectedFlats[0] === "ROSEDALE";
 
   useEffect(() => {
     const init = async () => {
@@ -113,8 +121,6 @@ export const AddVisitorScreen: React.FC = () => {
     init();
   }, []);
 
-  const isSocietyWide = wing === "ROSEDALE";
-  const savedFlatNumber = isSocietyWide ? "000" : flatNumber;
   const resolvedType: VisitType =
     selectedTypeOption === "Other" ? customType.trim() : selectedTypeOption;
 
@@ -148,6 +154,20 @@ export const AddVisitorScreen: React.FC = () => {
     setCustomType(trimmed);
   };
 
+  // Apply a flats list to state, setting activeWing from the first flat
+  const applyFlats = (flats: string[]) => {
+    if (flats.length === 0) return;
+    setSelectedFlats(flats);
+    if (flats[0] === "ROSEDALE") {
+      setActiveWing("ROSEDALE");
+    } else {
+      const first = parseFlatString(flats[0]);
+      if (first.wing && WINGS.includes(first.wing as Wing)) {
+        setActiveWing(first.wing as Wing);
+      }
+    }
+  };
+
   useEffect(() => {
     const prefill = route.params?.prefill;
     if (!prefill) return;
@@ -161,18 +181,21 @@ export const AddVisitorScreen: React.FC = () => {
       setVehicle(prefill.vehicle);
     }
 
-    const prefillWing = resolveWing(prefill.wing);
-    if (prefillWing) {
-      setWing(prefillWing);
-      if (prefillWing === "ROSEDALE") {
-        setFlatNumber("000");
-      } else if (
-        typeof prefill.flatNumber === "string" &&
-        FLATS_IN_WING.includes(prefill.flatNumber as (typeof FLATS_IN_WING)[number])
-      ) {
-        setFlatNumber(prefill.flatNumber);
-      } else {
-        setFlatNumber(DEFAULT_FLAT);
+    if (prefill.flats && prefill.flats.length > 0) {
+      applyFlats(prefill.flats);
+    } else {
+      const prefillWing = resolveWing(prefill.wing);
+      if (prefillWing) {
+        if (prefillWing === "ROSEDALE") {
+          applyFlats(["ROSEDALE"]);
+        } else if (
+          typeof prefill.flatNumber === "string" &&
+          FLATS_IN_WING.includes(prefill.flatNumber as (typeof FLATS_IN_WING)[number])
+        ) {
+          applyFlats([`${prefillWing}-${prefill.flatNumber}`]);
+        } else {
+          applyFlats([`${prefillWing}-${DEFAULT_FLAT}`]);
+        }
       }
     }
 
@@ -239,22 +262,52 @@ export const AddVisitorScreen: React.FC = () => {
     setVehicle(p.vehicle);
     setPhotoUri(normalizeImageUri(p.photoUri));
     applyTypeValue(p.type);
-    const parsedLegacy = parseLegacyFlat(p.flat);
-    const w = p.wing ?? parsedLegacy.wing;
-    const f = p.flatNumber ?? parsedLegacy.flatNumber;
 
-    if (w && WINGS.includes(w as Wing)) {
-      setWing(w as Wing);
-      if (w === "ROSEDALE") {
-        setFlatNumber("000");
-      } else if (f && FLATS_IN_WING.includes(f as (typeof FLATS_IN_WING)[number])) {
-        setFlatNumber(f);
-      } else {
-        setFlatNumber(DEFAULT_FLAT);
+    if (p.flats && p.flats.length > 0) {
+      applyFlats(p.flats);
+    } else {
+      // Legacy: derive from wing/flatNumber
+      const parsedLegacy = parseLegacyFlat(p.flat);
+      const w = p.wing ?? parsedLegacy.wing;
+      const f = p.flatNumber ?? parsedLegacy.flatNumber;
+
+      if (w && WINGS.includes(w as Wing)) {
+        if (w === "ROSEDALE") {
+          applyFlats(["ROSEDALE"]);
+        } else if (f && FLATS_IN_WING.includes(f as (typeof FLATS_IN_WING)[number])) {
+          applyFlats([`${w}-${f}`]);
+        } else {
+          applyFlats([`${w}-${DEFAULT_FLAT}`]);
+        }
       }
     }
 
     setShowSuggestions(false);
+  };
+
+  // Wing pill press: ROSEDALE clears everything and sets society-wide;
+  // other wings just switch the active view without clearing other-wing selections.
+  const onWingPress = (w: Wing) => {
+    if (w === "ROSEDALE") {
+      setSelectedFlats(["ROSEDALE"]);
+      setActiveWing("ROSEDALE");
+    } else {
+      setSelectedFlats((prev) => prev.filter((f) => f !== "ROSEDALE"));
+      setActiveWing(w);
+    }
+  };
+
+  // Flat pill press: toggle the flat for the active wing
+  const onFlatPress = (f: string) => {
+    const key = `${activeWing}-${f}`;
+    setSelectedFlats((prev) =>
+      prev.includes(key) ? prev.filter((x) => x !== key) : [...prev, key],
+    );
+  };
+
+  // Remove a single flat chip
+  const removeFlat = (key: string) => {
+    setSelectedFlats((prev) => prev.filter((f) => f !== key));
   };
 
   const validate = () => {
@@ -267,6 +320,7 @@ export const AddVisitorScreen: React.FC = () => {
     }
     if (!n) return t(language, "addVisitorValidationName");
     if (ph.length < 8) return t(language, "addVisitorValidationPhone");
+    if (selectedFlats.length === 0) return t(language, "addVisitorValidationFlat");
 
     return null;
   };
@@ -288,14 +342,20 @@ export const AddVisitorScreen: React.FC = () => {
 
     const ph = phone.replace(/\D/g, "");
 
+    // Derive wing/flatNumber from first flat for backward compat fields
+    const firstFlat = parseFlatString(selectedFlats[0]);
+    const wing = firstFlat.wing as VisitorWing | undefined;
+    const flatNumber = isSocietyWide ? "000" : firstFlat.flatNumber;
+
     try {
       const profile = await upsertVisitorProfile({
         name: name.trim(),
         phone: ph,
         type: resolvedType,
         vehicle,
+        flats: selectedFlats,
         wing,
-        flatNumber: savedFlatNumber,
+        flatNumber,
         photoUri,
       });
 
@@ -308,8 +368,9 @@ export const AddVisitorScreen: React.FC = () => {
         phone: ph,
         type: resolvedType,
         vehicle,
+        flats: selectedFlats,
         wing,
-        flatNumber: savedFlatNumber,
+        flatNumber,
         event: "CHECKIN",
       });
 
@@ -409,12 +470,19 @@ export const AddVisitorScreen: React.FC = () => {
       </TouchableOpacity>
     );
   };
+
   const selectedPhotoUri = normalizeImageUri(photoUri);
   const selectedPhotoInitial = String(name ?? "").trim().charAt(0).toUpperCase() || "?";
 
   useEffect(() => {
     setIsSelectedPhotoBroken(false);
   }, [selectedPhotoUri]);
+
+  // Human-readable label for a flat key like "A-101" or "ROSEDALE"
+  const flatChipLabel = (key: string) => {
+    if (key === "ROSEDALE") return t(language, "addVisitorWingRosedale");
+    return key; // already "A-101" format
+  };
 
   return (
     <ScrollView
@@ -495,25 +563,34 @@ export const AddVisitorScreen: React.FC = () => {
         keyboardType="phone-pad"
         style={styles.input}
       />
+
+      {/* Flat — multi-select across wings */}
       <Text style={styles.label}>{t(language, "addVisitorFlatLabel")}</Text>
+
+      {/* Selected flats chips */}
+      {selectedFlats.length > 0 && (
+        <View style={styles.chipsRow}>
+          {selectedFlats.map((key) => (
+            <View key={key} style={styles.chip}>
+              <Text style={styles.chipText}>{flatChipLabel(key)}</Text>
+              <TouchableOpacity
+                onPress={() => removeFlat(key)}
+                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+              >
+                <Text style={styles.chipRemove}>×</Text>
+              </TouchableOpacity>
+            </View>
+          ))}
+        </View>
+      )}
 
       <Text style={styles.subLabel}>{t(language, "addVisitorWingLabel")}</Text>
       <View style={styles.pillsRow}>
         {WINGS.map((w) => (
           <TouchableOpacity
             key={w}
-            style={[styles.pill, w === wing && styles.pillSelected]}
-            onPress={() => {
-              setWing(w);
-              if (w === "ROSEDALE") {
-                setFlatNumber("000");
-                return;
-              }
-
-              if (!FLATS_IN_WING.includes(flatNumber as (typeof FLATS_IN_WING)[number])) {
-                setFlatNumber(DEFAULT_FLAT);
-              }
-            }}
+            style={[styles.pill, w === activeWing && styles.pillSelected]}
+            onPress={() => onWingPress(w)}
             activeOpacity={0.8}
           >
             <Text style={styles.pillText}>{wingLabel(w)}</Text>
@@ -528,22 +605,30 @@ export const AddVisitorScreen: React.FC = () => {
         <Text style={styles.helperText}>{t(language, "addVisitorRosedaleFlatFixed")}</Text>
       ) : (
         <View style={styles.pillsRow}>
-          {FLATS_IN_WING.map((f) => (
-            <TouchableOpacity
-              key={f}
-              style={[styles.pill, f === flatNumber && styles.pillSelected]}
-              onPress={() => setFlatNumber(f)}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.pillText}>{f}</Text>
-            </TouchableOpacity>
-          ))}
+          {FLATS_IN_WING.map((f) => {
+            const key = `${activeWing}-${f}`;
+            const isSelected = selectedFlats.includes(key);
+            return (
+              <TouchableOpacity
+                key={f}
+                style={[styles.pill, isSelected && styles.pillSelected]}
+                onPress={() => onFlatPress(f)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.pillText}>{f}</Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
       )}
 
       <Text style={styles.helperText}>
-        {t(language, "addVisitorSavedAs")} {wingLabel(wing)}-{savedFlatNumber}
+        {t(language, "addVisitorSavedAs")}{" "}
+        {selectedFlats.length === 0
+          ? "—"
+          : selectedFlats.map(flatChipLabel).join(", ")}
       </Text>
+
       {/* Vehicle */}
       <Text style={styles.label}>{t(language, "addVisitorVehicleLabel")}</Text>
       <View style={styles.pillsRow}>
@@ -660,6 +745,35 @@ const styles = StyleSheet.create({
   },
   pillText: {
     fontSize: 13,
+  },
+  chipsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    marginBottom: 6,
+  },
+  chip: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#e0f7fa",
+    borderColor: "#0aa",
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingVertical: 4,
+    paddingLeft: 10,
+    paddingRight: 6,
+    marginRight: 8,
+    marginBottom: 6,
+  },
+  chipText: {
+    fontSize: 13,
+    color: "#006060",
+    fontWeight: "600",
+    marginRight: 4,
+  },
+  chipRemove: {
+    fontSize: 16,
+    color: "#006060",
+    lineHeight: 18,
   },
   suggestionsBox: {
     borderWidth: 1,

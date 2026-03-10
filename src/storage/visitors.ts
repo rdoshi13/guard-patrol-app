@@ -22,9 +22,10 @@ export type VisitorProfile = {
   type: VisitType;
   vehicle: VehicleType;
   photoUri?: string;
-  wing?: VisitorWing;
-  flatNumber?: string;
-  flat?: string; // Legacy field kept for migration/backward compatibility
+  flats?: string[];      // last-used flat list e.g. ["A-101", "B-202"] or ["ROSEDALE"]
+  wing?: VisitorWing;    // backward compat: derived from first flat
+  flatNumber?: string;   // backward compat: derived from first flat
+  flat?: string;         // Legacy field kept for migration/backward compatibility
   visitCount: number;
   lastSeenAt?: string;
 };
@@ -43,9 +44,10 @@ export type VisitorEntry = {
   phone: string; // digits only
   type: VisitType;
   vehicle: VehicleType;
-  wing?: VisitorWing;
-  flatNumber?: string;
-  flat?: string; // Legacy field kept for migration/backward compatibility
+  flats?: string[];      // e.g. ["A-101", "B-202"] or ["ROSEDALE"]
+  wing?: VisitorWing;    // backward compat: derived from first flat
+  flatNumber?: string;   // backward compat: derived from first flat
+  flat?: string;         // Legacy field kept for migration/backward compatibility
 
   event: VisitorEntryEvent;
   notes?: string;
@@ -67,6 +69,7 @@ export type VisitorSheetRow = {
   wing: string;
   flatNumber: string;
   event: VisitorEntryEvent;
+  flats: string; // comma-joined e.g. "A-101,B-202" or "ROSEDALE"
 };
 
 const VISITOR_PROFILES_KEY = "visitor_profiles_v1";
@@ -168,6 +171,32 @@ function enforceSocietyWideFlat(wing?: VisitorWing, flatNumber?: string): {
   };
 }
 
+// Parse "A-101" or "ROSEDALE" into { wing, flatNumber }
+export function parseFlatString(s: string): { wing?: VisitorWing; flatNumber?: string } {
+  const trimmed = s.trim().toUpperCase();
+  if (trimmed === "ROSEDALE") return { wing: "ROSEDALE", flatNumber: "000" };
+  const m = trimmed.match(/^([A-D])-(\d+)$/);
+  if (!m) return {};
+  const wing = normalizeWing(m[1]);
+  return wing ? { wing, flatNumber: m[2] } : {};
+}
+
+function normalizeFlatsList(v: unknown): string[] | undefined {
+  if (!Array.isArray(v)) return undefined;
+  const result: string[] = [];
+  for (const item of v) {
+    if (typeof item === "string" && item.trim()) result.push(item.trim());
+  }
+  return result.length > 0 ? result : undefined;
+}
+
+function deriveFlatsFromLegacy(wing?: VisitorWing, flatNumber?: string): string[] | undefined {
+  if (!wing) return undefined;
+  if (wing === "ROSEDALE") return ["ROSEDALE"];
+  if (!flatNumber) return undefined;
+  return [`${wing}-${flatNumber}`];
+}
+
 export function parseLegacyFlat(v: unknown): {
   wing?: VisitorWing;
   flatNumber?: string;
@@ -203,14 +232,22 @@ function normalizeProfile(raw: any): {
 
   const sourcePhotoUri = typeof raw.photoUri === "string" ? raw.photoUri : undefined;
   const photoUri = normalizePhotoUri(raw.photoUri);
-  const wingRaw = normalizeWing(raw.wing);
-  const flatNumberRaw = normalizeFlatNumber(raw.flatNumber);
   const legacyFlat = typeof raw.flat === "string" ? raw.flat.trim() : "";
   const parsedLegacy = parseLegacyFlat(legacyFlat);
 
+  // Normalize flats list, or derive from wing/flatNumber for backward compat
+  const rawFlats = normalizeFlatsList(raw.flats);
+  const wingRaw = normalizeWing(raw.wing);
+  const flatNumberRaw = normalizeFlatNumber(raw.flatNumber);
   const wing = wingRaw ?? parsedLegacy.wing;
   const flatNumber = flatNumberRaw ?? parsedLegacy.flatNumber;
   const resolved = enforceSocietyWideFlat(wing, flatNumber);
+
+  const flats = rawFlats ?? deriveFlatsFromLegacy(resolved.wing, resolved.flatNumber);
+
+  // Derive wing/flatNumber from first flat as authoritative source
+  const firstFlat = flats && flats.length > 0 ? parseFlatString(flats[0]) : {};
+  const finalResolved = enforceSocietyWideFlat(firstFlat.wing ?? resolved.wing, firstFlat.flatNumber ?? resolved.flatNumber);
 
   const value: VisitorProfile = {
     id,
@@ -219,8 +256,9 @@ function normalizeProfile(raw: any): {
     type: normalizeVisitType(raw.type),
     vehicle: normalizeVehicleType(raw.vehicle),
     photoUri,
-    wing: resolved.wing,
-    flatNumber: resolved.flatNumber,
+    flats,
+    wing: finalResolved.wing,
+    flatNumber: finalResolved.flatNumber,
     flat: legacyFlat || undefined,
     visitCount: Number.isFinite(Number(raw.visitCount))
       ? Math.max(0, Number(raw.visitCount))
@@ -232,6 +270,7 @@ function normalizeProfile(raw: any): {
     (!wingRaw && !!wing) ||
     (!flatNumberRaw && !!resolved.flatNumber) ||
     resolved.forced ||
+    !rawFlats ||  // flats were derived from legacy — write back to persist them
     photoUri !== sourcePhotoUri ||
     value.phone !== String(raw.phone ?? "");
 
@@ -252,14 +291,22 @@ function normalizeEntry(raw: any): { value: VisitorEntry | null; changed: boolea
     return { value: null, changed: true };
   }
 
-  const wingRaw = normalizeWing(raw.wing);
-  const flatNumberRaw = normalizeFlatNumber(raw.flatNumber);
   const legacyFlat = typeof raw.flat === "string" ? raw.flat.trim() : "";
   const parsedLegacy = parseLegacyFlat(legacyFlat);
 
+  // Normalize flats list, or derive from wing/flatNumber for backward compat
+  const rawFlats = normalizeFlatsList(raw.flats);
+  const wingRaw = normalizeWing(raw.wing);
+  const flatNumberRaw = normalizeFlatNumber(raw.flatNumber);
   const wing = wingRaw ?? parsedLegacy.wing;
   const flatNumber = flatNumberRaw ?? parsedLegacy.flatNumber;
   const resolved = enforceSocietyWideFlat(wing, flatNumber);
+
+  const flats = rawFlats ?? deriveFlatsFromLegacy(resolved.wing, resolved.flatNumber);
+
+  // Derive wing/flatNumber from first flat as authoritative source
+  const firstFlat = flats && flats.length > 0 ? parseFlatString(flats[0]) : {};
+  const finalResolved = enforceSocietyWideFlat(firstFlat.wing ?? resolved.wing, firstFlat.flatNumber ?? resolved.flatNumber);
 
   const value: VisitorEntry = {
     id,
@@ -275,8 +322,9 @@ function normalizeEntry(raw: any): { value: VisitorEntry | null; changed: boolea
     phone: digitsOnly(String(raw.phone ?? "")),
     type: normalizeVisitType(raw.type),
     vehicle: normalizeVehicleType(raw.vehicle),
-    wing: resolved.wing,
-    flatNumber: resolved.flatNumber,
+    flats,
+    wing: finalResolved.wing,
+    flatNumber: finalResolved.flatNumber,
     flat: legacyFlat || undefined,
     event: raw.event === "CHECKIN" ? "CHECKIN" : "CHECKIN",
     notes:
@@ -339,8 +387,9 @@ export async function upsertVisitorProfile(input: {
   name: string;
   phone: string;
   type: VisitType;
-  wing?: VisitorWing;
-  flatNumber?: string;
+  flats?: string[];       // multi-flat list (authoritative when provided)
+  wing?: VisitorWing;     // kept for backward compat
+  flatNumber?: string;    // kept for backward compat
   flat?: string;
   vehicle: VehicleType;
   photoUri?: string;
@@ -352,10 +401,13 @@ export async function upsertVisitorProfile(input: {
   const id = createVisitorId(phoneKey);
   const nowIso = input.seenAtIso ?? new Date().toISOString();
   const incomingPhotoUri = normalizePhotoUri(input.photoUri);
+
+  // Resolve flats: use input.flats if provided, else derive from legacy inputs
+  const resolvedFlats = input.flats && input.flats.length > 0 ? input.flats : undefined;
   const parsedLegacy = parseLegacyFlat(input.flat);
-  const wing = normalizeWing(input.wing) ?? parsedLegacy.wing;
-  const flatNumber =
-    normalizeFlatNumber(input.flatNumber) ?? parsedLegacy.flatNumber;
+  const firstFlat = resolvedFlats ? parseFlatString(resolvedFlats[0]) : null;
+  const wing = firstFlat?.wing ?? normalizeWing(input.wing) ?? parsedLegacy.wing;
+  const flatNumber = firstFlat?.flatNumber ?? normalizeFlatNumber(input.flatNumber) ?? parsedLegacy.flatNumber;
   const resolved = enforceSocietyWideFlat(wing, flatNumber);
 
   const existing = profiles.find((p) => p.id === id);
@@ -369,6 +421,7 @@ export async function upsertVisitorProfile(input: {
       type: input.type,
       vehicle: input.vehicle,
       photoUri: incomingPhotoUri ?? existing.photoUri,
+      flats: resolvedFlats ?? existing.flats,
       wing: resolved.wing ?? existing.wing,
       flatNumber: resolved.flatNumber ?? existing.flatNumber,
       visitCount: existing.visitCount + 1,
@@ -382,6 +435,7 @@ export async function upsertVisitorProfile(input: {
       type: input.type,
       vehicle: input.vehicle,
       photoUri: incomingPhotoUri,
+      flats: resolvedFlats,
       wing: resolved.wing,
       flatNumber: resolved.flatNumber,
       visitCount: 1,
@@ -473,8 +527,9 @@ export async function addVisitorEntry(input: {
   phone: string;
   type: VisitType;
   vehicle: VehicleType;
-  wing?: VisitorWing;
-  flatNumber?: string;
+  flats?: string[];       // multi-flat list (authoritative when provided)
+  wing?: VisitorWing;     // kept for backward compat
+  flatNumber?: string;    // kept for backward compat
   flat?: string;
   event?: VisitorEntryEvent;
   notes?: string;
@@ -484,10 +539,13 @@ export async function addVisitorEntry(input: {
 
   const nowIso = input.createdAtIso ?? new Date().toISOString();
   const phoneDigits = digitsOnly(input.phone);
+
+  // Resolve flats: use input.flats if provided, else derive from legacy inputs
+  const resolvedFlats = input.flats && input.flats.length > 0 ? input.flats : undefined;
   const parsedLegacy = parseLegacyFlat(input.flat);
-  const wing = normalizeWing(input.wing) ?? parsedLegacy.wing;
-  const flatNumber =
-    normalizeFlatNumber(input.flatNumber) ?? parsedLegacy.flatNumber;
+  const firstFlat = resolvedFlats ? parseFlatString(resolvedFlats[0]) : null;
+  const wing = firstFlat?.wing ?? normalizeWing(input.wing) ?? parsedLegacy.wing;
+  const flatNumber = firstFlat?.flatNumber ?? normalizeFlatNumber(input.flatNumber) ?? parsedLegacy.flatNumber;
   const resolved = enforceSocietyWideFlat(wing, flatNumber);
 
   const entry: VisitorEntry = {
@@ -502,6 +560,7 @@ export async function addVisitorEntry(input: {
     phone: phoneDigits,
     type: input.type,
     vehicle: input.vehicle,
+    flats: resolvedFlats,
     wing: resolved.wing,
     flatNumber: resolved.flatNumber,
 
@@ -561,6 +620,13 @@ export async function cleanupSyncedVisitorEntries(
 }
 
 export function visitorEntryToSheetRow(entry: VisitorEntry): VisitorSheetRow {
+  // Build flats string: prefer explicit flats array, fall back to wing-flatNumber
+  const flatsStr = entry.flats && entry.flats.length > 0
+    ? entry.flats.join(",")
+    : entry.wing
+      ? entry.wing === "ROSEDALE" ? "ROSEDALE" : `${entry.wing}-${entry.flatNumber ?? ""}`
+      : "";
+
   return {
     recordId: entry.id,
     society: entry.society,
@@ -575,6 +641,7 @@ export function visitorEntryToSheetRow(entry: VisitorEntry): VisitorSheetRow {
     wing: entry.wing ?? "",
     flatNumber: entry.flatNumber ?? "",
     event: entry.event,
+    flats: flatsStr,
   };
 }
 

@@ -33,6 +33,7 @@ import {
   VisitorProfile,
   VisitorWing,
   loadVisitorProfiles,
+  parseFlatString,
 } from "../storage/visitors";
 
 const VISIT_TYPES: KnownVisitType[] = [
@@ -64,14 +65,17 @@ const FLATS_IN_WING = [
   "403",
 ] as const;
 
+const DEFAULT_WING: VisitorWing = "A";
+const DEFAULT_FLAT = "101";
+
 type FormState = {
   name: string;
   phone: string;
   type: VisitTypeOption;
   customType: string;
   vehicle: VehicleType;
-  wing: VisitorWing;
-  flatNumber: string;
+  activeWing: VisitorWing;    // which wing's flat pills are currently shown
+  selectedFlats: string[];    // e.g. ["A-101", "B-202"] or ["ROSEDALE"]
   photoUrl: string;
 };
 
@@ -81,8 +85,8 @@ const EMPTY_FORM: FormState = {
   type: "Guest",
   customType: "",
   vehicle: "None",
-  wing: "A",
-  flatNumber: "101",
+  activeWing: DEFAULT_WING,
+  selectedFlats: [`${DEFAULT_WING}-${DEFAULT_FLAT}`],
   photoUrl: "",
 };
 
@@ -118,6 +122,9 @@ export const ManageDailyHelpScreen: React.FC = () => {
   const [isPhotoPreviewBroken, setIsPhotoPreviewBroken] = useState(false);
   const scrollRef = useRef<ScrollView | null>(null);
   const formSectionYRef = useRef(0);
+
+  const isSocietyWide =
+    form.selectedFlats.length === 1 && form.selectedFlats[0] === "ROSEDALE";
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -217,6 +224,53 @@ export const ManageDailyHelpScreen: React.FC = () => {
     return vehicle;
   };
 
+  const flatChipLabel = (key: string) => {
+    if (key === "ROSEDALE") return t(language, "addVisitorWingRosedale");
+    return key;
+  };
+
+  // Apply a flats list to form state, also updating activeWing from first flat
+  const applyFlatsToForm = (flats: string[]) => {
+    if (flats.length === 0) return;
+    let activeWing: VisitorWing = DEFAULT_WING;
+    if (flats[0] === "ROSEDALE") {
+      activeWing = "ROSEDALE";
+    } else {
+      const first = parseFlatString(flats[0]);
+      if (first.wing) activeWing = first.wing as VisitorWing;
+    }
+    setForm((prev) => ({ ...prev, selectedFlats: flats, activeWing }));
+  };
+
+  const onWingPress = (w: VisitorWing) => {
+    if (w === "ROSEDALE") {
+      setForm((prev) => ({ ...prev, selectedFlats: ["ROSEDALE"], activeWing: "ROSEDALE" }));
+    } else {
+      setForm((prev) => ({
+        ...prev,
+        activeWing: w,
+        selectedFlats: prev.selectedFlats.filter((f) => f !== "ROSEDALE"),
+      }));
+    }
+  };
+
+  const onFlatPress = (f: string) => {
+    const key = `${form.activeWing}-${f}`;
+    setForm((prev) => ({
+      ...prev,
+      selectedFlats: prev.selectedFlats.includes(key)
+        ? prev.selectedFlats.filter((x) => x !== key)
+        : [...prev.selectedFlats, key],
+    }));
+  };
+
+  const removeFlat = (key: string) => {
+    setForm((prev) => ({
+      ...prev,
+      selectedFlats: prev.selectedFlats.filter((f) => f !== key),
+    }));
+  };
+
   const startCreate = () => {
     setEditingId(null);
     setForm(EMPTY_FORM);
@@ -225,6 +279,19 @@ export const ManageDailyHelpScreen: React.FC = () => {
 
   const startEdit = (item: DailyHelpTemplate) => {
     const isKnownType = VISIT_TYPES.includes(item.type as KnownVisitType);
+
+    // Restore selectedFlats from template's flats array, or derive from wing/flatNumber
+    const selectedFlats = item.flats && item.flats.length > 0
+      ? item.flats
+      : item.wing === "ROSEDALE"
+        ? ["ROSEDALE"]
+        : [`${item.wing}-${item.flatNumber}`];
+
+    const firstFlat = selectedFlats[0];
+    const activeWing: VisitorWing = firstFlat === "ROSEDALE"
+      ? "ROSEDALE"
+      : (parseFlatString(firstFlat).wing as VisitorWing) ?? DEFAULT_WING;
+
     setEditingId(item.id);
     setForm({
       name: item.name,
@@ -232,8 +299,8 @@ export const ManageDailyHelpScreen: React.FC = () => {
       type: isKnownType ? (item.type as KnownVisitType) : "Other",
       customType: isKnownType ? "" : item.type,
       vehicle: item.vehicle,
-      wing: item.wing,
-      flatNumber: item.flatNumber,
+      activeWing,
+      selectedFlats,
       photoUrl: item.photoUrl ?? "",
     });
     setIsPhotoPreviewBroken(false);
@@ -257,6 +324,19 @@ export const ManageDailyHelpScreen: React.FC = () => {
     }
 
     const isKnownType = VISIT_TYPES.includes(input.type as KnownVisitType);
+
+    // Restore selectedFlats from input (which already reads profile.flats)
+    const selectedFlats = input.flats && input.flats.length > 0
+      ? input.flats
+      : input.wing === "ROSEDALE"
+        ? ["ROSEDALE"]
+        : [`${input.wing}-${input.flatNumber}`];
+
+    const firstFlat = selectedFlats[0];
+    const activeWing: VisitorWing = firstFlat === "ROSEDALE"
+      ? "ROSEDALE"
+      : (parseFlatString(firstFlat).wing as VisitorWing) ?? DEFAULT_WING;
+
     setEditingId(null);
     setForm({
       name: input.name,
@@ -264,8 +344,8 @@ export const ManageDailyHelpScreen: React.FC = () => {
       type: isKnownType ? (input.type as KnownVisitType) : "Other",
       customType: isKnownType ? "" : input.type,
       vehicle: input.vehicle,
-      wing: input.wing,
-      flatNumber: input.flatNumber,
+      activeWing,
+      selectedFlats,
       photoUrl: input.photoUrl ?? "",
     });
     setIsPhotoPreviewBroken(false);
@@ -346,36 +426,41 @@ export const ManageDailyHelpScreen: React.FC = () => {
     if (saving) return;
 
     if (!form.name.trim()) {
-      Alert.alert(
-        t(language, "addVisitorMissingInfoTitle"),
-        t(language, "addVisitorValidationName"),
-      );
+      Alert.alert(t(language, "addVisitorMissingInfoTitle"), t(language, "addVisitorValidationName"));
       return;
     }
 
     if (digitsOnly(form.phone).length < 8) {
-      Alert.alert(
-        t(language, "addVisitorMissingInfoTitle"),
-        t(language, "addVisitorValidationPhone"),
-      );
+      Alert.alert(t(language, "addVisitorMissingInfoTitle"), t(language, "addVisitorValidationPhone"));
       return;
     }
 
     if (form.type === "Other" && !form.customType.trim()) {
-      Alert.alert(
-        t(language, "addVisitorMissingInfoTitle"),
-        t(language, "addVisitorValidationCustomType"),
-      );
+      Alert.alert(t(language, "addVisitorMissingInfoTitle"), t(language, "addVisitorValidationCustomType"));
       return;
     }
+
+    if (form.selectedFlats.length === 0) {
+      Alert.alert(t(language, "addVisitorMissingInfoTitle"), t(language, "addVisitorValidationFlat"));
+      return;
+    }
+
+    // Derive wing/flatNumber from first flat for backward compat
+    const firstFlat = parseFlatString(form.selectedFlats[0]);
+    const wing = (firstFlat.wing as VisitorWing) ?? DEFAULT_WING;
+    const flatNumber = isSocietyWide ? "000" : (firstFlat.flatNumber ?? DEFAULT_FLAT);
+
+    const resolvedType: VisitType =
+      form.type === "Other" ? form.customType.trim() : form.type;
 
     const payload: DailyHelpTemplateInput = {
       name: form.name.trim(),
       phone: digitsOnly(form.phone),
       type: resolvedType,
       vehicle: form.vehicle,
-      wing: form.wing,
-      flatNumber: form.wing === "ROSEDALE" ? "000" : form.flatNumber,
+      flats: form.selectedFlats,
+      wing,
+      flatNumber,
       photoUrl: form.photoUrl,
     };
 
@@ -464,8 +549,16 @@ export const ManageDailyHelpScreen: React.FC = () => {
   const selectedPhotoUri = normalizeImageUri(form.photoUrl);
   const selectedPhotoInitial =
     String(form.name ?? "").trim().charAt(0).toUpperCase() || "?";
-  const resolvedType: VisitType =
-    form.type === "Other" ? form.customType.trim() : form.type;
+
+  // Human-readable flat list label for the template list rows
+  const templateFlatsLabel = (item: DailyHelpTemplate): string => {
+    if (item.flats && item.flats.length > 0) {
+      return item.flats
+        .map((f) => (f === "ROSEDALE" ? t(language, "addVisitorWingRosedale") : f))
+        .join(", ");
+    }
+    return `${wingLabel(item.wing)}-${item.flatNumber}`;
+  };
 
   return (
     <ScrollView
@@ -565,64 +658,65 @@ export const ManageDailyHelpScreen: React.FC = () => {
             <Text style={styles.fieldLabel}>{t(language, "addVisitorCustomTypeLabel")}</Text>
             <TextInput
               value={form.customType}
-              onChangeText={(value) =>
-                setForm((prev) => ({
-                  ...prev,
-                  customType: value,
-                }))
-              }
+              onChangeText={(value) => setForm((prev) => ({ ...prev, customType: value }))}
               placeholder={t(language, "addVisitorCustomTypePlaceholder")}
               style={styles.input}
             />
           </>
         ) : null}
 
+        {/* Flat — multi-select across wings */}
+        <Text style={styles.fieldLabel}>{t(language, "addVisitorFlatLabel")}</Text>
+
+        {/* Selected flats chips */}
+        {form.selectedFlats.length > 0 && (
+          <View style={styles.chipsRow}>
+            {form.selectedFlats.map((key) => (
+              <View key={key} style={styles.chip}>
+                <Text style={styles.chipText}>{flatChipLabel(key)}</Text>
+                <TouchableOpacity
+                  onPress={() => removeFlat(key)}
+                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                >
+                  <Text style={styles.chipRemove}>×</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
+        )}
+
         <Text style={styles.fieldLabel}>{t(language, "addVisitorWingLabel")}</Text>
         <View style={styles.pillsRow}>
           {WINGS.map((item) => (
             <TouchableOpacity
               key={item}
-              style={[styles.pill, form.wing === item && styles.pillSelected]}
-              onPress={() =>
-                setForm((prev) => ({
-                  ...prev,
-                  wing: item,
-                  flatNumber:
-                    item === "ROSEDALE"
-                      ? "000"
-                      : FLATS_IN_WING.includes(
-                          prev.flatNumber as (typeof FLATS_IN_WING)[number],
-                        )
-                        ? prev.flatNumber
-                        : "101",
-                }))
-              }
+              style={[styles.pill, form.activeWing === item && styles.pillSelected]}
+              onPress={() => onWingPress(item)}
             >
               <Text style={styles.pillText}>{wingLabel(item)}</Text>
             </TouchableOpacity>
           ))}
         </View>
 
-        {form.wing === "ROSEDALE" ? (
+        {isSocietyWide ? (
           <Text style={styles.helper}>{t(language, "addVisitorRosedaleFlatFixed")}</Text>
         ) : (
           <>
             <Text style={styles.fieldLabel}>{t(language, "addVisitorFlatNumberLabel")}</Text>
             <View style={styles.pillsRow}>
-              {FLATS_IN_WING.map((item) => (
-                <TouchableOpacity
-                  key={item}
-                  style={[styles.pill, form.flatNumber === item && styles.pillSelected]}
-                  onPress={() =>
-                    setForm((prev) => ({
-                      ...prev,
-                      flatNumber: item,
-                    }))
-                  }
-                >
-                  <Text style={styles.pillText}>{item}</Text>
-                </TouchableOpacity>
-              ))}
+              {FLATS_IN_WING.map((f) => {
+                const key = `${form.activeWing}-${f}`;
+                const isSelected = form.selectedFlats.includes(key);
+                return (
+                  <TouchableOpacity
+                    key={f}
+                    style={[styles.pill, isSelected && styles.pillSelected]}
+                    onPress={() => onFlatPress(f)}
+                  >
+                    <Text style={styles.pillText}>{f}</Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </>
         )}
@@ -719,7 +813,7 @@ export const ManageDailyHelpScreen: React.FC = () => {
               <View style={{ flex: 1 }}>
                 <Text style={styles.templateName}>{item.name}</Text>
                 <Text style={styles.templateMeta}>
-                  {visitTypeLabel(item.type)} • {item.phone} • {wingLabel(item.wing)}-{item.flatNumber}
+                  {visitTypeLabel(item.type)} • {item.phone} • {templateFlatsLabel(item)}
                 </Text>
               </View>
 
@@ -844,6 +938,35 @@ const styles = StyleSheet.create({
   },
   pillText: {
     fontSize: 13,
+  },
+  chipsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    marginBottom: 4,
+  },
+  chip: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#e0f7fa",
+    borderColor: "#0aa",
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingVertical: 4,
+    paddingLeft: 10,
+    paddingRight: 6,
+    marginRight: 8,
+    marginBottom: 6,
+  },
+  chipText: {
+    fontSize: 13,
+    color: "#006060",
+    fontWeight: "600",
+    marginRight: 4,
+  },
+  chipRemove: {
+    fontSize: 16,
+    color: "#006060",
+    lineHeight: 18,
   },
   profileRow: {
     flexDirection: "row",
